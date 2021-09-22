@@ -1,0 +1,26 @@
+{
+  "name": "SuperSea",
+  "description": "The supercharged OpenSea experience",
+  "version": "0.1",
+  "manifest_version": 3,
+  "action": {
+    "icons": {
+      "128": "icon.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://opensea.io/*"],
+      "js": ["static/js/content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "background": {
+    "service_worker": "static/js/background.js"
+  },
+  "host_permissions": ["https://*.opensea.io/*"],
+  "icons": {
+    "128": "icon.png"
+  },
+  "permissions": ["webRequest", "storage"]
+}
