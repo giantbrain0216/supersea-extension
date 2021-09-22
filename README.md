@@ -7,7 +7,7 @@ SuperSea is a web browser extension that adds extra features to OpenSea:
 * Force fetch asset images  from source, to view them seconds after reveal instead of waiting for OpenSea to update.
 * Handy quick actions to view an assets raw metadata, and queue it to be updated on OpenSea. 
 * Avoid bundle scams with the bundle verification banner. 
-* Members only: View rarity ranks of all items inline. No need to navigate and cross reference from other ranking websites. 
+* **Members only:** View rarity ranks of all items inline. No need to navigate and cross reference from other ranking websites. 
 
 And many more features to come! 
 
