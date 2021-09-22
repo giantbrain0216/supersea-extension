@@ -1,3 +1,4 @@
+ ![SuperSea Logo](https://raw.githubusercontent.com/minmax-gg/supersea/master/src/assets/logo.png?token=AAFICHZZOR5FWXYYANOIW4DBJMZCI) 
 # SuperSea
 
 SuperSea is a web browser extension that adds extra features to OpenSea: 
