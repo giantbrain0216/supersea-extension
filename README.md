@@ -19,6 +19,7 @@ $ yarn && yarn build
 See [yarn](https://yarnpkg.com/en/docs/install) for instructions on how to install yarn.
 
 ## Installing
-See [Chrome Extensions Getting Started Guide](https://developer.chrome.com/docs/extensions/mv3/getstarted/#manifest) for instructions on how to install the extension.
+Download `supersea.zip` from [the latest release](https://github.com/minmax-gg/supersea/releases). Unzip in a location of your choice.
+Follow the instructions on [Chrome Extensions Getting Started Guide](https://developer.chrome.com/docs/extensions/mv3/getstarted/#manifest) for instructions on how to install the extension (screenshotted below): 
 
 ![image](https://user-images.githubusercontent.com/688415/134358959-b30f4d20-df02-4c7d-b34b-bb8c51bea15c.png)
