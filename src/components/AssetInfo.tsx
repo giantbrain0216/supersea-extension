@@ -15,9 +15,13 @@ import {
   MenuList,
   IconButton,
   useToast,
+  Tag,
+  HStack,
   useColorModeValue,
+  Tooltip,
 } from '@chakra-ui/react'
 import { FiMoreHorizontal, FiExternalLink } from 'react-icons/fi'
+import { LockIcon } from '@chakra-ui/icons'
 
 import {
   fetchAssetInfo,
@@ -31,17 +35,87 @@ import {
 import Toast from './Toast'
 import EthereumIcon from './EthereumIcon'
 import Logo from './Logo'
+import { useUser } from '../utils/user'
 
 export const HEIGHT = 85
 export const LIST_HEIGHT = 62
 
-const RARITY_COLORS = [
-  { top: 0.001, color: { light: 'orange.200', dark: 'orange.500' } },
-  { top: 0.01, color: { light: 'purple.200', dark: 'purple.500' } },
-  { top: 0.1, color: { light: 'blue.200', dark: 'blue.500' } },
-  { top: 0.5, color: { light: 'green.200', dark: 'green.500' } },
-  { top: Infinity, color: { light: 'gray.200', dark: 'gray.500' } },
+const RARITY_TYPES = [
+  {
+    top: 0.001,
+    name: 'Legendary',
+    color: { light: 'orange.200', dark: 'orange.500' },
+  },
+  {
+    top: 0.01,
+    name: 'Epic',
+    color: { light: 'purple.200', dark: 'purple.500' },
+  },
+  { top: 0.1, name: 'Rare', color: { light: 'blue.200', dark: 'blue.500' } },
+  {
+    top: 0.5,
+    name: 'Uncommon',
+    color: { light: 'green.200', dark: 'green.500' },
+  },
+  {
+    top: Infinity,
+    name: 'Common',
+    color: { light: 'gray.200', dark: 'gray.500' },
+  },
 ]
+
+type Rarity = {
+  tokenCount: number
+  rank: number
+  type: typeof RARITY_TYPES[number]
+}
+const RarityBadge = ({
+  rarity,
+  isMember,
+}: {
+  rarity: Rarity | null
+  isMember: boolean
+}) => {
+  if (isMember)
+    return (
+      <Tooltip
+        isDisabled={!rarity}
+        label={
+          rarity
+            ? `${rarity.type.name}${
+                rarity.type.top !== Infinity
+                  ? ` (top ${rarity.type.top * 100}%)`
+                  : ''
+              }`
+            : ''
+        }
+        size="lg"
+        hasArrow
+        bg="gray.700"
+        placement="top"
+        color="white"
+        px={3}
+        py={2}
+      >
+        <Text fontWeight="500" cursor={rarity ? 'pointer' : undefined}>
+          {rarity === null ? 'Unranked' : `#${rarity.rank}`}
+        </Text>
+      </Tooltip>
+    )
+  return (
+    <Link
+      href="https://nonfungible.tools/connect"
+      _hover={{ textDecoration: 'none' }}
+    >
+      <Tag>
+        <HStack spacing="1">
+          <LockIcon />
+          <Box mt="1px">Member</Box>
+        </HStack>
+      </Tag>
+    </Link>
+  )
+}
 
 const AssetInfo = ({
   address,
@@ -54,15 +128,9 @@ const AssetInfo = ({
   type: 'grid' | 'list' | 'item'
   container: HTMLElement
 }) => {
-  const [rarity, setRarity] = useState<
-    | {
-        tokenCount: number
-        rank: number
-        color: { light: string; dark: string }
-      }
-    | null
-    | undefined
-  >(undefined)
+  const { isMember } = useUser() || { isMember: false }
+
+  const [rarity, setRarity] = useState<Rarity | null | undefined>(undefined)
   const [floor, setFloor] = useState<Floor | null | undefined>(undefined)
 
   const toast = useToast()
@@ -85,8 +153,7 @@ const AssetInfo = ({
           setRarity({
             tokenCount,
             rank,
-            color: RARITY_COLORS.find(({ top }) => rank / tokenCount <= top)!
-              .color,
+            type: RARITY_TYPES.find(({ top }) => rank / tokenCount <= top)!,
           })
           return
         }
@@ -116,8 +183,8 @@ const AssetInfo = ({
       borderTop="1px solid"
       borderColor={useColorModeValue('gray.200', 'transparent')}
       bg={useColorModeValue(
-        rarity ? rarity.color.light : 'gray.50',
-        rarity ? rarity.color.dark : 'gray.600',
+        rarity && isMember ? rarity.type.color.light : 'gray.50',
+        rarity && isMember ? rarity.type.color.dark : 'gray.600',
       )}
     >
       <Box
@@ -285,9 +352,7 @@ const AssetInfo = ({
             Rank:
           </Text>
           {rarity !== undefined ? (
-            <Text fontWeight="500">
-              {rarity === null ? 'Unranked' : `#${rarity.rank}`}
-            </Text>
+            <RarityBadge isMember={isMember} rarity={rarity} />
           ) : (
             <Spinner ml={1} width={3} height={3} opacity={0.75} />
           )}
