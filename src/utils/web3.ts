@@ -6,7 +6,7 @@ const web3 = new Web3(
   ),
 )
 
-export const fetchMetadataUri = async (address: string, tokenId: string) => {
+export const fetchMetadataUri = async (address: string, tokenId: number) => {
   const contract = new web3.eth.Contract(
     [
       {

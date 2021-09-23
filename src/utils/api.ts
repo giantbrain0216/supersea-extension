@@ -1,5 +1,6 @@
 import DataLoader from 'dataloader'
 import { request, gql, GraphQLClient } from 'graphql-request'
+import { fetchMetadataUri } from '../utils/web3'
 import { RateLimit } from 'async-sema'
 
 export type Rarities = {
@@ -231,7 +232,7 @@ const assetLoader = new DataLoader(
   },
 )
 
-export const fetchAssetInfo = (address: string, tokenId: string) => {
+export const fetchAssetInfo = (address: string, tokenId: number) => {
   return assetLoader.load(`${address}_${tokenId}`) as Promise<AssetInfo>
 }
 
@@ -296,6 +297,48 @@ export const fetchAllAssetsForUser = async ({
     result = result.concat(assets)
   }
   return result
+}
+
+const metadataQuery = gql`
+  query GetMetadata($tokenMetadataInput: TokenMetadataInput!) {
+    getTokenMetadata(input: $tokenMetadataInput) {
+      data
+      success
+    }
+  }
+`
+
+export const fetchMetadata = async (
+  contractAddress: string,
+  tokenId: number,
+) => {
+  try {
+    const {
+      getTokenMetadata: { data },
+    } = await nonFungibleRequest(metadataQuery, {
+      tokenMetadataInput: {
+        contractAddress,
+        tokenId,
+      },
+    })
+    if (data) {
+      return data
+    }
+  } catch (err) {}
+  const assetInfo = await fetchAssetInfo(contractAddress, tokenId)
+  return fetch(assetInfo?.tokenMetadata).then((res) => res.json())
+}
+
+export const fetchMetadataUriWithOpenSeaFallback = async (
+  address: string,
+  tokenId: number,
+) => {
+  const contractTokenUri = await fetchMetadataUri(address, tokenId)
+  if (!contractTokenUri) {
+    const assetInfo = await fetchAssetInfo(address, tokenId)
+    return assetInfo?.tokenMetadata
+  }
+  return contractTokenUri.replace(/^ipfs:\/\//, 'https://ipfs.io/ipfs/')
 }
 
 const openSeaRefreshMetaDataMutation = gql`

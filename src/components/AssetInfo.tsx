@@ -18,10 +18,12 @@ import {
   useColorModeValue,
 } from '@chakra-ui/react'
 import { FiMoreHorizontal, FiExternalLink } from 'react-icons/fi'
-import { fetchMetadataUri } from '../utils/web3'
+
 import {
   fetchAssetInfo,
   fetchFloorPrice,
+  fetchMetadata,
+  fetchMetadataUriWithOpenSeaFallback,
   fetchRarities,
   Floor,
   triggerOpenSeaMetadataRefresh,
@@ -40,18 +42,6 @@ const RARITY_COLORS = [
   { top: 0.5, color: { light: 'green.200', dark: 'green.500' } },
   { top: Infinity, color: { light: 'gray.200', dark: 'gray.500' } },
 ]
-
-const fetchMetadataUriWithOpenSeaFallback = async (
-  address: string,
-  tokenId: string,
-) => {
-  const contractTokenUri = await fetchMetadataUri(address, tokenId!)
-  if (!contractTokenUri) {
-    const assetInfo = await fetchAssetInfo(address, tokenId!)
-    return assetInfo?.tokenMetadata
-  }
-  return contractTokenUri.replace(/^ipfs:\/\//, 'https://ipfs.io/ipfs/')
-}
 
 const AssetInfo = ({
   address,
@@ -180,7 +170,7 @@ const AssetInfo = ({
           >
             <MenuItem
               onClick={async () => {
-                const assetInfo = await fetchAssetInfo(address, tokenId!)
+                const assetInfo = await fetchAssetInfo(address, +tokenId)
                 if (!assetInfo) {
                   toast({
                     duration: 3000,
@@ -208,14 +198,8 @@ const AssetInfo = ({
             </MenuItem>
             <MenuItem
               onClick={async () => {
-                let metadataUri = await fetchMetadataUriWithOpenSeaFallback(
-                  address,
-                  tokenId!,
-                )
                 try {
-                  const metadata = await fetch(metadataUri).then((res) =>
-                    res.json(),
-                  )
+                  const metadata = await fetchMetadata(address, +tokenId)
                   const imgElement = container.querySelector(
                     '.Image--image',
                   ) as HTMLElement
@@ -236,6 +220,7 @@ const AssetInfo = ({
                     }, 100)
                   }
                 } catch (err) {
+                  console.error(err)
                   toast({
                     duration: 3000,
                     position: 'bottom-right',
@@ -252,7 +237,7 @@ const AssetInfo = ({
               onClick={async () => {
                 let metadataUri = await fetchMetadataUriWithOpenSeaFallback(
                   address,
-                  tokenId!,
+                  +tokenId,
                 )
                 if (!metadataUri) {
                   toast({
