@@ -132,10 +132,7 @@ const injectReact = (
   content: React.ReactElement,
   target: ReactDOM.Container,
 ) => {
-  ReactDOM.render(
-    <AppProvider user={{ isMember: true }}>{content}</AppProvider>,
-    target,
-  )
+  ReactDOM.render(<AppProvider>{content}</AppProvider>, target)
 }
 
 const injectBundleVerification = () => {

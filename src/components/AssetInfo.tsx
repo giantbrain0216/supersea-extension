@@ -26,6 +26,7 @@ import { LockIcon } from '@chakra-ui/icons'
 import {
   fetchAssetInfo,
   fetchFloorPrice,
+  fetchIsRanked,
   fetchMetadata,
   fetchMetadataUriWithOpenSeaFallback,
   fetchRarities,
@@ -65,6 +66,7 @@ const RARITY_TYPES = [
 ]
 
 type Rarity = {
+  isRanked: boolean
   tokenCount: number
   rank: number
   type: typeof RARITY_TYPES[number]
@@ -76,7 +78,8 @@ const RarityBadge = ({
   rarity: Rarity | null
   isMember: boolean
 }) => {
-  if (isMember)
+  const memberTagBg = useColorModeValue('blue.200', 'blue.500')
+  if (isMember) {
     return (
       <Tooltip
         isDisabled={!rarity}
@@ -102,19 +105,23 @@ const RarityBadge = ({
         </Text>
       </Tooltip>
     )
-  return (
-    <Link
-      href="https://nonfungible.tools/connect"
-      _hover={{ textDecoration: 'none' }}
-    >
-      <Tag>
-        <HStack spacing="1">
-          <LockIcon />
-          <Box mt="1px">Member</Box>
-        </HStack>
-      </Tag>
-    </Link>
-  )
+  }
+  if (rarity && rarity.isRanked) {
+    return (
+      <Link
+        href="https://nonfungible.tools/connect"
+        _hover={{ textDecoration: 'none' }}
+      >
+        <Tag bg={memberTagBg} size="sm">
+          <HStack spacing="1px">
+            <LockIcon height="9px" />
+            <Box mt="1px">Member</Box>
+          </HStack>
+        </Tag>
+      </Link>
+    )
+  }
+  return <Text fontWeight="500">Unranked</Text>
 }
 
 const AssetInfo = ({
@@ -142,23 +149,34 @@ const AssetInfo = ({
       setFloor(floor)
     })()
     ;(async () => {
-      const rarities = await fetchRarities(address)
-      if (rarities) {
-        const { tokenCount, tokens } = rarities
-        const token = tokens.find(
-          ({ iteratorID }) => String(iteratorID) === tokenId,
-        )
-        if (token) {
-          const { rank } = token
-          setRarity({
-            tokenCount,
-            rank,
-            type: RARITY_TYPES.find(({ top }) => rank / tokenCount <= top)!,
-          })
-          return
+      if (isMember) {
+        const rarities = await fetchRarities(address)
+        if (rarities) {
+          const { tokenCount, tokens } = rarities
+          const token = tokens.find(
+            ({ iteratorID }) => String(iteratorID) === tokenId,
+          )
+          if (token) {
+            const { rank } = token
+            setRarity({
+              isRanked: true,
+              tokenCount,
+              rank,
+              type: RARITY_TYPES.find(({ top }) => rank / tokenCount <= top)!,
+            })
+            return
+          }
+          setRarity(null)
         }
+      } else {
+        const isRanked = await fetchIsRanked(address)
+        setRarity({
+          isRanked: Boolean(isRanked),
+          tokenCount: 0,
+          rank: 0,
+          type: RARITY_TYPES[RARITY_TYPES.length - 1],
+        })
       }
-      setRarity(null)
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address, tokenId])
@@ -180,6 +198,7 @@ const AssetInfo = ({
       borderTopRadius={type === 'list' ? '5px' : 0}
       fontSize={type === 'list' ? '12px' : '14px'}
       color={useColorModeValue('gray.700', 'white')}
+      border={type === 'list' ? '1px solid' : undefined}
       borderTop="1px solid"
       borderColor={useColorModeValue('gray.200', 'transparent')}
       bg={useColorModeValue(
@@ -206,7 +225,10 @@ const AssetInfo = ({
           top="50%"
           right="-16px"
           transform="translateY(-50%)"
-          color={useColorModeValue(rarity ? 'white' : 'gray.400', 'white')}
+          color={useColorModeValue(
+            rarity && isMember ? 'white' : 'gray.300',
+            'white',
+          )}
         />
       </Box>
       <Menu isLazy autoSelect={false}>

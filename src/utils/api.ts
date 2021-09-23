@@ -1,7 +1,7 @@
 import DataLoader from 'dataloader'
 import { request, gql, GraphQLClient } from 'graphql-request'
 import { fetchMetadataUri } from '../utils/web3'
-import { RateLimit } from 'async-sema'
+import { RateLimit, Sema } from 'async-sema'
 
 export type Rarities = {
   tokenCount: number
@@ -60,18 +60,24 @@ const tokenClient = new GraphQLClient('https://api.nonfungible.tools/graphql', {
   mode: 'cors',
 })
 
-let cachedAccessToken: string | null = null
-const getAccessToken = async (refresh = false) => {
+const accessTokenSema = new Sema(1)
+let cachedAccessToken: string | null | undefined = undefined
+export const getAccessToken = async (refresh = false) => {
+  await accessTokenSema.acquire()
   if (!refresh) {
-    if (cachedAccessToken) return cachedAccessToken
+    if (cachedAccessToken !== undefined) {
+      accessTokenSema.release()
+      return cachedAccessToken
+    }
 
     const storedToken = await new Promise((resolve) =>
-      chrome.storage.local.get(['accessToken'], ({ openSeaHeaders }) => {
-        resolve(openSeaHeaders)
+      chrome.storage.local.get(['accessToken'], ({ accessToken }) => {
+        resolve(accessToken)
       }),
     )
     if (storedToken) {
       cachedAccessToken = storedToken as string
+      accessTokenSema.release()
       return storedToken
     }
   }
@@ -81,23 +87,38 @@ const getAccessToken = async (refresh = false) => {
 
   chrome.storage.local.set({ accessToken })
   cachedAccessToken = accessToken
+  accessTokenSema.release()
 
   return accessToken
 }
 
-const nonFungibleRequest = async (query: any, variables: any = {}) => {
-  const accessToken = await getAccessToken()
-
-  return request(
-    'https://cdn.nonfungible.tools/graphql',
-    query,
-    variables,
-    accessToken
-      ? {
-          Authorization: `Bearer ${accessToken}`,
-        }
-      : {},
-  )
+const nonFungibleRequest = async (
+  query: any,
+  variables: any = {},
+  refreshAccessToken = false,
+): Promise<any> => {
+  const accessToken = await getAccessToken(refreshAccessToken)
+  try {
+    const res = await request(
+      'https://cdn.nonfungible.tools/graphql',
+      query,
+      variables,
+      accessToken
+        ? {
+            Authorization: accessToken,
+          }
+        : {},
+    )
+    return res
+  } catch (err: any) {
+    if (
+      err?.response?.errors[0]?.message === 'Not Authorised!' &&
+      !refreshAccessToken
+    ) {
+      return nonFungibleRequest(query, variables, true)
+    }
+    throw err
+  }
 }
 
 const retryingOpenSeaRequest = async (
@@ -166,6 +187,18 @@ export const fetchFloorPrice = (address: string) => {
   return floorPriceLoader.load(address) as Promise<Floor>
 }
 
+const rarityQuery = gql`
+  query RarityQuery($address: String!) {
+    contract(address: $address) {
+      tokenCount
+      tokens {
+        iteratorID
+        rank
+      }
+    }
+  }
+`
+
 const rarityLoader = new DataLoader(
   async (addresses: readonly string[]) => {
     // Max batch size is 1, we only use this for client side caching
@@ -185,20 +218,39 @@ const rarityLoader = new DataLoader(
   },
 )
 
-const rarityQuery = gql`
-  query RarityQuery($address: String!) {
+export const fetchRarities = async (address: string) => {
+  return rarityLoader.load(address) as Promise<Rarities>
+}
+
+const isRankedQuery = gql`
+  query IsRankedQuery($address: String!) {
     contract(address: $address) {
-      tokenCount
-      tokens {
-        iteratorID
-        rank
-      }
+      isRanked
     }
   }
 `
 
-export const fetchRarities = async (address: string) => {
-  return rarityLoader.load(address) as Promise<Rarities>
+const isRankedLoader = new DataLoader(
+  async (addresses: readonly string[]) => {
+    // Max batch size is 1, we only use this for client side caching
+    const address = addresses[0]
+    try {
+      const res = await nonFungibleRequest(isRankedQuery, {
+        address,
+      })
+      return [res.contract.isRanked]
+    } catch (e) {
+      return [null]
+    }
+  },
+  {
+    batchScheduleFn: (callback) => setTimeout(callback, 250),
+    maxBatchSize: 1,
+  },
+)
+
+export const fetchIsRanked = async (address: string) => {
+  return isRankedLoader.load(address) as Promise<boolean>
 }
 
 const assetLoader = new DataLoader(
