@@ -7,6 +7,7 @@ import {
 } from '@emotion/react'
 import theme from '../theme'
 import { SCOPED_CLASS_NAME } from './ScopedCSSReset'
+import { User, UserProvider } from '../utils/user'
 
 export const ThemeProvider = (props: EmotionThemeProviderProps) => {
   const { theme, children } = props
@@ -18,8 +19,7 @@ export const ThemeProvider = (props: EmotionThemeProviderProps) => {
   )
 }
 
-// Providers from ChakraProvider, without the global styles (we add these separately once)
-const AppProvider = ({ children }: React.PropsWithChildren<{}>) => {
+const LeanChakraProvider = ({ children }: React.PropsWithChildren<{}>) => {
   return (
     <IdProvider>
       <ThemeProvider theme={theme}>
@@ -28,6 +28,18 @@ const AppProvider = ({ children }: React.PropsWithChildren<{}>) => {
         </ColorModeProvider>
       </ThemeProvider>
     </IdProvider>
+  )
+}
+
+// Providers from ChakraProvider, without the global styles (we add these separately once)
+const AppProvider = ({
+  children,
+  user,
+}: React.PropsWithChildren<{ user: User }>) => {
+  return (
+    <UserProvider value={user}>
+      <LeanChakraProvider>{children}</LeanChakraProvider>
+    </UserProvider>
   )
 }
 

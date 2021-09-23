@@ -12,9 +12,9 @@ import {
   Progress,
   useColorModeValue,
 } from '@chakra-ui/react'
-import EthereumSVG from '../assets/ethereum.svg'
-import LogoSvg from '../assets/logo.svg'
+import Logo from './Logo'
 import { fetchAllAssetsForUser, fetchFloorPrice, Floor } from '../utils/api'
+import EthereumIcon from './EthereumIcon'
 
 const ProfileSummary = ({
   userName,
@@ -59,15 +59,17 @@ const ProfileSummary = ({
         }))
       },
     })
-  }, [userName, address])
+  }, [userName, ensName, address])
 
   return (
     <Box px={3} width="100vw" maxWidth="480px">
       <Flex
-        bg={useColorModeValue('gray.500', 'gray.700')}
-        color="white"
+        bg={useColorModeValue('gray.50', 'gray.700')}
+        color={useColorModeValue('gray.700', 'white')}
         width="100%"
         borderRadius="md"
+        border="1px solid"
+        borderColor={useColorModeValue('gray.200', 'transparent')}
         my="4"
         py="4"
         px="7"
@@ -76,11 +78,9 @@ const ProfileSummary = ({
         position="relative"
         overflow="hidden"
       >
-        <Icon
-          as={LogoSvg as any}
+        <Logo
           position="absolute"
           opacity={0.35}
-          color="white"
           width="120px"
           height="120px"
           top="50%"
@@ -117,14 +117,7 @@ const ProfileSummary = ({
               minHeight="35px"
               alignItems="center"
             >
-              <Icon
-                as={EthereumSVG as any}
-                width="0.5em"
-                mr="0.3em"
-                mt="-3px"
-                verticalAlign="middle"
-                display="inline-block"
-              />
+              <EthereumIcon mt="-3px" />
               <Text>
                 {progress.numLoaded ? Math.round(floorTotal * 100) / 100 : null}
               </Text>
@@ -144,14 +137,7 @@ const ProfileSummary = ({
               minHeight="35px"
               alignItems="center"
             >
-              <Icon
-                as={EthereumSVG as any}
-                width="0.5em"
-                mr="0.3em"
-                mt="-3px"
-                verticalAlign="middle"
-                display="inline-block"
-              />
+              <EthereumIcon mt="-3px" />
               <Text>
                 {progress.numLoaded
                   ? Math.round((floorTotal / progress.numLoaded) * 100) / 100

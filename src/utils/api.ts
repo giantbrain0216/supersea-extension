@@ -1,5 +1,5 @@
 import DataLoader from 'dataloader'
-import { request, gql } from 'graphql-request'
+import { request, gql, GraphQLClient } from 'graphql-request'
 import { RateLimit } from 'async-sema'
 
 export type Rarities = {
@@ -21,7 +21,7 @@ export type AssetInfo = {
   tokenMetadata: string
 }
 
-const openSeaRateLimit = RateLimit(5)
+const openSeaRateLimit = RateLimit(3)
 
 const getOpenSeaHeaders = () => {
   return new Promise((resolve) => {
@@ -43,6 +43,60 @@ const openSeaRequest = async (query: any, variables: any = {}) => {
     }
   }
   return resp
+}
+
+const refreshTokenQuery = gql`
+  mutation RefreshToken {
+    refreshToken {
+      success
+      accessToken
+    }
+  }
+`
+
+const tokenClient = new GraphQLClient('https://api.nonfungible.tools/graphql', {
+  credentials: 'include',
+  mode: 'cors',
+})
+
+let cachedAccessToken: string | null = null
+const getAccessToken = async (refresh = false) => {
+  if (!refresh) {
+    if (cachedAccessToken) return cachedAccessToken
+
+    const storedToken = await new Promise((resolve) =>
+      chrome.storage.local.get(['accessToken'], ({ openSeaHeaders }) => {
+        resolve(openSeaHeaders)
+      }),
+    )
+    if (storedToken) {
+      cachedAccessToken = storedToken as string
+      return storedToken
+    }
+  }
+  const {
+    refreshToken: { accessToken },
+  } = await tokenClient.request(refreshTokenQuery)
+
+  chrome.storage.local.set({ accessToken })
+  cachedAccessToken = accessToken
+
+  return accessToken
+}
+
+const nonFungibleRequest = async (query: any, variables: any = {}) => {
+  const accessToken = await getAccessToken()
+
+  return request(
+    'https://cdn.nonfungible.tools/graphql',
+    query,
+    variables,
+    accessToken
+      ? {
+          Authorization: `Bearer ${accessToken}`,
+        }
+      : {},
+  )
 }
 
 const retryingOpenSeaRequest = async (
@@ -116,13 +170,9 @@ const rarityLoader = new DataLoader(
     // Max batch size is 1, we only use this for client side caching
     const address = addresses[0]
     try {
-      const res = await request(
-        'https://cdn.nonfungible.tools/graphql',
-        rarityQuery,
-        {
-          address,
-        },
-      )
+      const res = await nonFungibleRequest(rarityQuery, {
+        address,
+      })
       return [res.contract]
     } catch (e) {
       return [null]
@@ -176,7 +226,7 @@ const assetLoader = new DataLoader(
     })
   },
   {
-    batchScheduleFn: (callback) => setTimeout(callback, 250),
+    // batchScheduleFn: (callback) => setTimeout(callback, 250),
     maxBatchSize: 10,
   },
 )

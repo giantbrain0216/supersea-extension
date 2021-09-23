@@ -5,7 +5,6 @@ import {
   Text,
   VStack,
   Icon,
-  Tag,
   Spinner,
   Link,
   Menu,
@@ -15,39 +14,43 @@ import {
   MenuItem,
   MenuList,
   IconButton,
-  useColorMode,
   useToast,
+  useColorModeValue,
 } from '@chakra-ui/react'
 import { FiMoreHorizontal, FiExternalLink } from 'react-icons/fi'
-import LogoSvg from '../assets/logo.svg'
-import EthereumSVG from '../assets/ethereum.svg'
+import { fetchMetadataUri } from '../utils/web3'
 import {
-  AssetInfo as AssetInfoType,
   fetchAssetInfo,
   fetchFloorPrice,
   fetchRarities,
   Floor,
   triggerOpenSeaMetadataRefresh,
 } from '../utils/api'
+import Toast from './Toast'
+import EthereumIcon from './EthereumIcon'
+import Logo from './Logo'
 
 export const HEIGHT = 85
 export const LIST_HEIGHT = 62
 
-const RARITY_COLORS = {
-  light: [
-    { top: 0.001, color: 'orange.400' },
-    { top: 0.01, color: 'purple.400' },
-    { top: 0.1, color: 'blue.400' },
-    { top: 0.5, color: 'green.400' },
-    { top: Infinity, color: 'gray.500' },
-  ],
-  dark: [
-    { top: 0.001, color: 'orange.500' },
-    { top: 0.01, color: 'purple.500' },
-    { top: 0.1, color: 'blue.500' },
-    { top: 0.5, color: 'green.500' },
-    { top: Infinity, color: 'gray.700' },
-  ],
+const RARITY_COLORS = [
+  { top: 0.001, color: { light: 'orange.200', dark: 'orange.500' } },
+  { top: 0.01, color: { light: 'purple.200', dark: 'purple.500' } },
+  { top: 0.1, color: { light: 'blue.200', dark: 'blue.500' } },
+  { top: 0.5, color: { light: 'green.200', dark: 'green.500' } },
+  { top: Infinity, color: { light: 'gray.200', dark: 'gray.500' } },
+]
+
+const fetchMetadataUriWithOpenSeaFallback = async (
+  address: string,
+  tokenId: string,
+) => {
+  const contractTokenUri = await fetchMetadataUri(address, tokenId!)
+  if (!contractTokenUri) {
+    const assetInfo = await fetchAssetInfo(address, tokenId!)
+    return assetInfo?.tokenMetadata
+  }
+  return contractTokenUri.replace(/^ipfs:\/\//, 'https://ipfs.io/ipfs/')
 }
 
 const AssetInfo = ({
@@ -56,20 +59,21 @@ const AssetInfo = ({
   type,
   container,
 }: {
-  address?: string
-  tokenId?: string
+  address: string
+  tokenId: string
   type: 'grid' | 'list' | 'item'
   container: HTMLElement
 }) => {
   const [rarity, setRarity] = useState<
-    { tokenCount: number; rank: number; color: string } | null | undefined
+    | {
+        tokenCount: number
+        rank: number
+        color: { light: string; dark: string }
+      }
+    | null
+    | undefined
   >(undefined)
   const [floor, setFloor] = useState<Floor | null | undefined>(undefined)
-  const [assetInfo, setAssetInfo] = useState<AssetInfoType | null | undefined>(
-    undefined,
-  )
-
-  const { colorMode } = useColorMode()
 
   const toast = useToast()
 
@@ -91,23 +95,16 @@ const AssetInfo = ({
           setRarity({
             tokenCount,
             rank,
-            color: RARITY_COLORS[colorMode].find(
-              ({ top }) => rank / tokenCount <= top,
-            )!.color,
+            color: RARITY_COLORS.find(({ top }) => rank / tokenCount <= top)!
+              .color,
           })
           return
         }
       }
       setRarity(null)
     })()
-    ;(async () => {
-      const assetInfo = await fetchAssetInfo(address, tokenId)
-      setAssetInfo(assetInfo)
-    })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address, tokenId])
-
-  if (!address) return <Box height={`${HEIGHT}px`} />
 
   return (
     <Flex
@@ -125,10 +122,13 @@ const AssetInfo = ({
       borderBottomRadius="5px"
       borderTopRadius={type === 'list' ? '5px' : 0}
       fontSize={type === 'list' ? '12px' : '14px'}
-      color="white"
-      bg={
-        rarity ? rarity.color : colorMode === 'light' ? 'gray.600' : 'gray.600'
-      }
+      color={useColorModeValue('gray.700', 'white')}
+      borderTop="1px solid"
+      borderColor={useColorModeValue('gray.200', 'transparent')}
+      bg={useColorModeValue(
+        rarity ? rarity.color.light : 'gray.50',
+        rarity ? rarity.color.dark : 'gray.600',
+      )}
     >
       <Box
         position="absolute"
@@ -141,16 +141,15 @@ const AssetInfo = ({
         borderTopRightRadius={type === 'list' ? '5px' : 0}
         overflow="hidden"
       >
-        <Icon
-          as={LogoSvg as any}
+        <Logo
           position="absolute"
-          opacity={colorMode === 'light' ? 0.5 : 0.35}
-          color="white"
+          opacity={useColorModeValue(rarity ? 0.75 : 0.35, 0.35)}
           width={type === 'list' ? '70px' : '120px'}
           height={type === 'list' ? '70px' : '120px'}
           top="50%"
           right="-16px"
           transform="translateY(-50%)"
+          color={useColorModeValue(rarity ? 'white' : 'gray.400', 'white')}
         />
       </Box>
       <Menu isLazy autoSelect={false}>
@@ -170,117 +169,108 @@ const AssetInfo = ({
           More Options
         </MenuButton>
         <MenuList
-          borderColor={colorMode === 'light' ? 'gray.400' : 'gray.800'}
+          borderColor={useColorModeValue('gray.200', 'gray.800')}
           zIndex={2}
-          color={colorMode === 'light' ? 'black' : 'white'}
+          color={useColorModeValue('black', 'white')}
         >
           <MenuGroup
             // @ts-ignore
-            title={
-              <Text>
-                Metadata{' '}
-                {assetInfo === undefined && (
-                  <Spinner
-                    ml="0.4em"
-                    size="xs"
-                    verticalAlign="middle"
-                    position="relative"
-                    top="-2px"
-                  />
-                )}
-                {assetInfo === null && (
-                  <Tag size="sm" ml="0.3em">
-                    Unavailable
-                  </Tag>
-                )}
-              </Text>
-            }
+            title={<Text>Metadata</Text>}
             mr="0"
           >
             <MenuItem
               onClick={async () => {
-                if (!assetInfo) return
+                const assetInfo = await fetchAssetInfo(address, tokenId!)
+                if (!assetInfo) {
+                  toast({
+                    duration: 3000,
+                    position: 'bottom-right',
+                    render: () => (
+                      <Toast
+                        text="Unable to queue OpenSea refresh at this moment."
+                        type="error"
+                      />
+                    ),
+                  })
+                  return
+                }
                 await triggerOpenSeaMetadataRefresh(assetInfo?.relayId)
                 toast({
                   duration: 3000,
                   position: 'bottom-right',
                   render: () => (
-                    <Box
-                      bg={colorMode === 'light' ? 'gray.500' : 'gray.700'}
-                      borderRadius="md"
-                      px="6"
-                      py="2"
-                      mx="5"
-                      minWidth="380px"
-                      position="relative"
-                      overflow="hidden"
-                    >
-                      <Text color="white">
-                        OpenSea metadata refresh queued.
-                      </Text>
-                      <Icon
-                        as={LogoSvg as any}
-                        position="absolute"
-                        opacity={0.35}
-                        color="white"
-                        width="80px"
-                        height="80px"
-                        top="50%"
-                        right="-16px"
-                        transform="translateY(-50%)"
-                      />
-                    </Box>
+                    <Toast text="Opensea metadata refresh queued." />
                   ),
                 })
               }}
-              isDisabled={!assetInfo}
             >
               Queue OpenSea refresh
             </MenuItem>
             <MenuItem
-              isDisabled={!assetInfo}
               onClick={async () => {
-                if (!assetInfo) return
-                chrome.runtime.sendMessage(
-                  { method: 'fetch', params: { url: assetInfo.tokenMetadata } },
-                  (metadata) => {
-                    const imgElement = container.querySelector(
-                      '.Image--image',
-                    ) as HTMLElement
-                    if (imgElement) {
-                      imgElement.style.opacity = '0'
-                      setTimeout(() => {
-                        imgElement.setAttribute('src', '')
-                      }, 0)
-                      setTimeout(() => {
-                        imgElement.style.opacity = '1'
-                        imgElement.setAttribute(
-                          'src',
-                          (metadata.image || metadata.image_url).replace(
-                            /^ipfs:\/\//,
-                            'https://ipfs.io/ipfs/',
-                          ),
-                        )
-                      }, 100)
-                    }
-                  },
+                let metadataUri = await fetchMetadataUriWithOpenSeaFallback(
+                  address,
+                  tokenId!,
                 )
+                try {
+                  const metadata = await fetch(metadataUri).then((res) =>
+                    res.json(),
+                  )
+                  const imgElement = container.querySelector(
+                    '.Image--image',
+                  ) as HTMLElement
+                  if (imgElement) {
+                    imgElement.style.opacity = '0'
+                    setTimeout(() => {
+                      imgElement.setAttribute('src', '')
+                    }, 0)
+                    setTimeout(() => {
+                      imgElement.style.opacity = '1'
+                      imgElement.setAttribute(
+                        'src',
+                        (metadata.image || metadata.image_url).replace(
+                          /^ipfs:\/\//,
+                          'https://ipfs.io/ipfs/',
+                        ),
+                      )
+                    }, 100)
+                  }
+                } catch (err) {
+                  toast({
+                    duration: 3000,
+                    position: 'bottom-right',
+                    render: () => (
+                      <Toast text="Unable to load source image." type="error" />
+                    ),
+                  })
+                }
               }}
             >
               Replace image from source
             </MenuItem>
             <MenuItem
-              isDisabled={!assetInfo}
               onClick={async () => {
-                if (!assetInfo) return
-                console.log(assetInfo?.tokenMetadata)
-                if (/^data:/.test(assetInfo?.tokenMetadata)) {
-                  const blob = await fetch(assetInfo.tokenMetadata).then(
-                    (res) => res.blob(),
+                let metadataUri = await fetchMetadataUriWithOpenSeaFallback(
+                  address,
+                  tokenId!,
+                )
+                if (!metadataUri) {
+                  toast({
+                    duration: 3000,
+                    position: 'bottom-right',
+                    render: () => (
+                      <Toast text="Unable to load metadata." type="error" />
+                    ),
+                  })
+                  return
+                }
+                if (/^data:/.test(metadataUri)) {
+                  const blob = await fetch(metadataUri).then((res) =>
+                    res.blob(),
                   )
                   window.open(URL.createObjectURL(blob), '_blank')
                 } else {
-                  window.open(assetInfo?.tokenMetadata, '_blank')
+                  window.open(metadataUri, '_blank')
                 }
               }}
             >
@@ -323,15 +313,7 @@ const AssetInfo = ({
           </Text>
           {floor ? (
             <>
-              {floor?.currency === 'ETH' ? (
-                <Icon
-                  as={EthereumSVG as any}
-                  width="0.5em"
-                  mr="0.25em"
-                  verticalAlign="middle"
-                  display="inline-block"
-                />
-              ) : null}
+              {floor?.currency === 'ETH' ? <EthereumIcon /> : null}
               <Link href={floor.floorSearchUrl}>
                 {floor === null ? (
                   <Text>Unavailable</Text>

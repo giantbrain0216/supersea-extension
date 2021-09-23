@@ -61,7 +61,10 @@ const injectAssetInfo = () => {
     const { address, tokenId } = (() => {
       if (type === 'item') {
         const page = getPage()
-        return { address: page?.ethAddress, tokenId: page?.tokenId }
+        return {
+          address: page?.ethAddress.toLowerCase(),
+          tokenId: page?.tokenId,
+        }
       }
       const link = node.querySelector(
         type === 'grid' ? '.Asset--anchor' : '.AssetCell--link',
@@ -129,7 +132,10 @@ const injectReact = (
   content: React.ReactElement,
   target: ReactDOM.Container,
 ) => {
-  ReactDOM.render(<AppProvider>{content}</AppProvider>, target)
+  ReactDOM.render(
+    <AppProvider user={{ isMember: true }}>{content}</AppProvider>,
+    target,
+  )
 }
 
 const injectBundleVerification = () => {
