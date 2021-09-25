@@ -40,3 +40,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
   return true
 })
+
+chrome.action.onClicked.addListener(() => {
+  chrome.tabs.create({ url: 'https://nonfungible.tools/supersea' })
+})
