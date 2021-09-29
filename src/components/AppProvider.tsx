@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { IdProvider, ColorModeProvider } from '@chakra-ui/react'
 import { toCSSVar } from '@chakra-ui/styled-system'
 import {
@@ -7,6 +7,8 @@ import {
 } from '@emotion/react'
 import theme from '../theme'
 import { SCOPED_CLASS_NAME } from './ScopedCSSReset'
+import { User, UserProvider } from '../utils/user'
+import { getAccessToken } from '../utils/api'
 
 export const ThemeProvider = (props: EmotionThemeProviderProps) => {
   const { theme, children } = props
@@ -18,8 +20,7 @@ export const ThemeProvider = (props: EmotionThemeProviderProps) => {
   )
 }
 
-// Providers from ChakraProvider, without the global styles (we add these separately once)
-const AppProvider = ({ children }: React.PropsWithChildren<{}>) => {
+const LeanChakraProvider = ({ children }: React.PropsWithChildren<{}>) => {
   return (
     <IdProvider>
       <ThemeProvider theme={theme}>
@@ -28,6 +29,23 @@ const AppProvider = ({ children }: React.PropsWithChildren<{}>) => {
         </ColorModeProvider>
       </ThemeProvider>
     </IdProvider>
+  )
+}
+
+// Providers from ChakraProvider, without the global styles (we add these separately once)
+const AppProvider = ({ children }: React.PropsWithChildren<{}>) => {
+  const [user, setUser] = useState<User | null>(null)
+  useEffect(() => {
+    ;(async () => {
+      const accessToken = await getAccessToken()
+      setUser({ isMember: accessToken !== null })
+    })()
+  }, [])
+  if (!user) return null
+  return (
+    <UserProvider value={user}>
+      <LeanChakraProvider>{children}</LeanChakraProvider>
+    </UserProvider>
   )
 }
 
