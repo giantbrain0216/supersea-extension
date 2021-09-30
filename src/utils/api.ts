@@ -3,6 +3,11 @@ import { request, gql, GraphQLClient } from 'graphql-request'
 import { fetchMetadataUri } from '../utils/web3'
 import { RateLimit, Sema } from 'async-sema'
 
+const OPENSEA_SHARED_CONTRACT_ADDRESS =
+  '0x495f947276749ce646f68ac8c248420045cb7b5e'
+// Not exactly right but good enough to split tokenIds into their unique collections
+const OPENSEA_SHARED_CONTRACT_COLLECTION_ID_LENGTH = 60
+
 export type Rarities = {
   tokenCount: number
   tokens: {
@@ -157,7 +162,7 @@ const floorPriceLoader = new DataLoader(
 			query {
 				${keys.map(
           ({ address, tokenId, chain }) => `
-				  addr_${address}:  archetype(archetype: {assetContractAddress: "${address}", tokenId: "${tokenId}", chain: "${
+				  addr_${address}_${tokenId}:  archetype(archetype: {assetContractAddress: "${address}", tokenId: "${tokenId}", chain: "${
             chain === 'polygon' ? 'MATIC' : ''
           }"}) {
             asset {
@@ -172,8 +177,8 @@ const floorPriceLoader = new DataLoader(
 			}
 		`
     const res = await openSeaRequest(query)
-    return keys.map(({ address }) => {
-      const response = res[`addr_${address}`]
+    return keys.map(({ address, tokenId }) => {
+      const response = res[`addr_${address}_${tokenId}`]
       if (!response) return null
       const collection = response.asset.collection
       return {
@@ -186,7 +191,14 @@ const floorPriceLoader = new DataLoader(
   {
     batchScheduleFn: (callback) => setTimeout(callback, 250),
     maxBatchSize: 10,
-    cacheKeyFn: ({ address }) => address,
+    cacheKeyFn: ({ address, tokenId }) => {
+      if (address === OPENSEA_SHARED_CONTRACT_ADDRESS)
+        return `${address}/${tokenId.slice(
+          0,
+          OPENSEA_SHARED_CONTRACT_COLLECTION_ID_LENGTH,
+        )}`
+      return address
+    },
   },
 )
 
