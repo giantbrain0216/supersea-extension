@@ -25,10 +25,13 @@ const getPage = () => {
       ethAddress: collectionAssetHref.split('/')[2],
     }
   } else if (path[1] === 'assets') {
+    const [tokenType, address, tokenId] = path.slice(-3)
     return {
       type: 'asset',
-      ethAddress: path[2].toLowerCase(),
-      tokenId: path[3],
+      ethAddress: address.toLowerCase(),
+      chain:
+        tokenType === 'matic' ? ('polygon' as const) : ('ethereum' as const),
+      tokenId,
     }
   }
 }
@@ -58,21 +61,29 @@ const injectAssetInfo = () => {
     if (node.dataset[NODE_ASSET_PROCESSED_DATA_KEY]) return
     node.dataset[NODE_ASSET_PROCESSED_DATA_KEY] = '1'
 
-    const { address, tokenId } = (() => {
+    const { address, tokenId, chain } = (() => {
       if (type === 'item') {
         const page = getPage()
         return {
           address: page?.ethAddress.toLowerCase(),
           tokenId: page?.tokenId,
+          chain: page?.chain,
         }
       }
       const link = node.querySelector(
         type === 'grid' ? '.Asset--anchor' : '.AssetCell--link',
       )
       if (link) {
-        const [address, tokenId] =
-          link.getAttribute('href')?.split('/').slice(-2) || []
-        return { address, tokenId }
+        const [tokenType, address, tokenId] =
+          link.getAttribute('href')?.split('/').slice(-3) || []
+        return {
+          address,
+          tokenId,
+          chain:
+            tokenType === 'matic'
+              ? ('polygon' as const)
+              : ('ethereum' as const),
+        }
       }
       return {}
     })()
@@ -119,6 +130,7 @@ const injectAssetInfo = () => {
         <AssetInfo
           address={address}
           tokenId={tokenId}
+          chain={chain}
           type={type}
           container={node}
         />,

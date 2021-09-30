@@ -129,10 +129,12 @@ const AssetInfo = ({
   tokenId,
   type,
   container,
+  chain,
 }: {
   address: string
   tokenId: string
   type: 'grid' | 'list' | 'item'
+  chain?: 'ethereum' | 'polygon'
   container: HTMLElement
 }) => {
   const { isMember } = useUser() || { isMember: false }
@@ -150,6 +152,10 @@ const AssetInfo = ({
     })()
     ;(async () => {
       if (isMember) {
+        if (chain === 'polygon') {
+          setRarity(null)
+          return
+        }
         const rarities = await fetchRarities(address)
         if (rarities) {
           const { tokenCount, tokens } = rarities
@@ -254,10 +260,20 @@ const AssetInfo = ({
         >
           <MenuGroup
             // @ts-ignore
-            title={<Text>Metadata</Text>}
+            title={
+              <Text>
+                Metadata{' '}
+                {chain === 'polygon' ? (
+                  <Tag fontSize="xs" mt="-1px" ml="0.35em">
+                    Unavailable
+                  </Tag>
+                ) : null}
+              </Text>
+            }
             mr="0"
           >
             <MenuItem
+              isDisabled={chain === 'polygon'}
               onClick={async () => {
                 const assetInfo = await fetchAssetInfo(address, +tokenId)
                 if (!assetInfo) {
@@ -286,6 +302,7 @@ const AssetInfo = ({
               Queue OpenSea refresh
             </MenuItem>
             <MenuItem
+              isDisabled={chain === 'polygon'}
               onClick={async () => {
                 try {
                   const metadata = await fetchMetadata(address, +tokenId)
@@ -323,6 +340,7 @@ const AssetInfo = ({
               Replace image from source
             </MenuItem>
             <MenuItem
+              isDisabled={chain === 'polygon'}
               onClick={async () => {
                 let metadataUri = await fetchMetadataUriWithOpenSeaFallback(
                   address,
@@ -352,10 +370,15 @@ const AssetInfo = ({
             </MenuItem>
           </MenuGroup>
           <MenuDivider />
-          <MenuGroup title="Etherscan">
+          <MenuGroup title={chain === 'ethereum' ? 'Etherscan' : 'Polygonscan'}>
             <MenuItem
               onClick={() => {
-                window.open(`https://etherscan.io/token/${address}`, '_blank')
+                window.open(
+                  `https://${
+                    chain === 'ethereum' ? 'etherscan.io' : 'polygonscan.com'
+                  }/token/${address}`,
+                  '_blank',
+                )
               }}
             >
               View contract <Icon as={FiExternalLink} ml="0.3em" mt="-2px" />
