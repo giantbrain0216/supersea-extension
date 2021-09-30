@@ -88,7 +88,7 @@ const injectAssetInfo = () => {
       return {}
     })()
 
-    if (!(address && tokenId)) return
+    if (!(address && tokenId && chain)) return
 
     const container = document.createElement('div')
     if (type === 'grid') {

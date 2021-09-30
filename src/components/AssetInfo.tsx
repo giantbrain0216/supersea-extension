@@ -24,6 +24,7 @@ import { FiMoreHorizontal, FiExternalLink } from 'react-icons/fi'
 import { LockIcon } from '@chakra-ui/icons'
 
 import {
+  Chain,
   fetchAssetInfo,
   fetchFloorPrice,
   fetchIsRanked,
@@ -134,7 +135,7 @@ const AssetInfo = ({
   address: string
   tokenId: string
   type: 'grid' | 'list' | 'item'
-  chain?: 'ethereum' | 'polygon'
+  chain: Chain
   container: HTMLElement
 }) => {
   const { isMember } = useUser() || { isMember: false }
@@ -147,7 +148,7 @@ const AssetInfo = ({
   useEffect(() => {
     if (!(address && tokenId)) return
     ;(async () => {
-      const floor = await fetchFloorPrice(address)
+      const floor = await fetchFloorPrice({ address, tokenId, chain })
       setFloor(floor)
     })()
     ;(async () => {

@@ -43,8 +43,12 @@ const ProfileSummary = ({
         const floors = await Promise.all(
           assetsPage
             .filter(Boolean)
-            .map(async ({ assetContract: { address } }) =>
-              fetchFloorPrice(address),
+            .map(async ({ assetContract: { address, chain }, tokenId }) =>
+              fetchFloorPrice({
+                address,
+                tokenId,
+                chain: chain === 'MATIC' ? 'polygon' : 'ethereum',
+              }),
             ),
         )
         setFloorTotal(

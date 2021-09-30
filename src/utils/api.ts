@@ -22,6 +22,8 @@ export type AssetInfo = {
   tokenMetadata: string
 }
 
+export type Chain = 'ethereum' | 'polygon'
+
 const openSeaRateLimit = RateLimit(3)
 
 const getOpenSeaHeaders = () => {
@@ -148,31 +150,35 @@ const retryingOpenSeaRequest = async (
 }
 
 const floorPriceLoader = new DataLoader(
-  async (addresses: readonly string[]) => {
+  async (
+    keys: readonly { address: string; tokenId: string; chain: Chain }[],
+  ) => {
     const query = gql`
 			query {
-				${addresses.map(
-          (address) => `
-				  addr_${address}: collections(assetContractAddress: "${address}", first: 1) {
-						edges {
-							node {
-								slug
-								floorPrice
-							}
-						}
-					}	
+				${keys.map(
+          ({ address, tokenId, chain }) => `
+				  addr_${address}:  archetype(archetype: {assetContractAddress: "${address}", tokenId: "${tokenId}", chain: "${
+            chain === 'polygon' ? 'MATIC' : ''
+          }"}) {
+            asset {
+              collection {
+                floorPrice
+                slug
+              }
+            }
+          }	
 				`,
         )}
 			}
 		`
     const res = await openSeaRequest(query)
-    return addresses.map((address) => {
+    return keys.map(({ address }) => {
       const response = res[`addr_${address}`]
       if (!response) return null
-      const node = response.edges[0].node
+      const collection = response.asset.collection
       return {
-        price: Math.round(node.floorPrice * 10000) / 10000,
-        floorSearchUrl: `https://opensea.io/collection/${node.slug}?search[sortAscending]=true&search[sortBy]=PRICE&search[toggles][0]=BUY_NOW`,
+        price: Math.round(collection.floorPrice * 10000) / 10000,
+        floorSearchUrl: `https://opensea.io/collection/${collection.slug}?search[sortAscending]=true&search[sortBy]=PRICE&search[toggles][0]=BUY_NOW`,
         currency: 'ETH',
       }
     })
@@ -180,11 +186,16 @@ const floorPriceLoader = new DataLoader(
   {
     batchScheduleFn: (callback) => setTimeout(callback, 250),
     maxBatchSize: 10,
+    cacheKeyFn: ({ address }) => address,
   },
 )
 
-export const fetchFloorPrice = (address: string) => {
-  return floorPriceLoader.load(address) as Promise<Floor>
+export const fetchFloorPrice = (params: {
+  address: string
+  tokenId: string
+  chain: Chain
+}) => {
+  return floorPriceLoader.load(params) as Promise<Floor>
 }
 
 const rarityQuery = gql`
@@ -306,6 +317,7 @@ const userAssetsQuery = gql`
             assetContract {
               address
             }
+            tokenId
           }
         }
       }
