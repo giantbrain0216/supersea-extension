@@ -3,6 +3,11 @@ import { request, gql, GraphQLClient } from 'graphql-request'
 import { fetchMetadataUri } from '../utils/web3'
 import { RateLimit, Sema } from 'async-sema'
 
+const OPENSEA_SHARED_CONTRACT_ADDRESS =
+  '0x495f947276749ce646f68ac8c248420045cb7b5e'
+// Not exactly right but good enough to split tokenIds into their unique collections
+const OPENSEA_SHARED_CONTRACT_COLLECTION_ID_LENGTH = 60
+
 export type Rarities = {
   tokenCount: number
   tokens: {
@@ -21,6 +26,8 @@ export type AssetInfo = {
   relayId: string
   tokenMetadata: string
 }
+
+export type Chain = 'ethereum' | 'polygon'
 
 const openSeaRateLimit = RateLimit(3)
 
@@ -148,31 +155,35 @@ const retryingOpenSeaRequest = async (
 }
 
 const floorPriceLoader = new DataLoader(
-  async (addresses: readonly string[]) => {
+  async (
+    keys: readonly { address: string; tokenId: string; chain: Chain }[],
+  ) => {
     const query = gql`
 			query {
-				${addresses.map(
-          (address) => `
-				  addr_${address}: collections(assetContractAddress: "${address}", first: 1) {
-						edges {
-							node {
-								slug
-								floorPrice
-							}
-						}
-					}	
+				${keys.map(
+          ({ address, tokenId, chain }) => `
+				  addr_${address}_${tokenId}:  archetype(archetype: {assetContractAddress: "${address}", tokenId: "${tokenId}", chain: "${
+            chain === 'polygon' ? 'MATIC' : ''
+          }"}) {
+            asset {
+              collection {
+                floorPrice
+                slug
+              }
+            }
+          }	
 				`,
         )}
 			}
 		`
     const res = await openSeaRequest(query)
-    return addresses.map((address) => {
-      const response = res[`addr_${address}`]
+    return keys.map(({ address, tokenId }) => {
+      const response = res[`addr_${address}_${tokenId}`]
       if (!response) return null
-      const node = response.edges[0].node
+      const collection = response.asset.collection
       return {
-        price: Math.round(node.floorPrice * 10000) / 10000,
-        floorSearchUrl: `https://opensea.io/collection/${node.slug}?search[sortAscending]=true&search[sortBy]=PRICE&search[toggles][0]=BUY_NOW`,
+        price: Math.round(collection.floorPrice * 10000) / 10000,
+        floorSearchUrl: `https://opensea.io/collection/${collection.slug}?search[sortAscending]=true&search[sortBy]=PRICE&search[toggles][0]=BUY_NOW`,
         currency: 'ETH',
       }
     })
@@ -180,11 +191,23 @@ const floorPriceLoader = new DataLoader(
   {
     batchScheduleFn: (callback) => setTimeout(callback, 250),
     maxBatchSize: 10,
+    cacheKeyFn: ({ address, tokenId }) => {
+      if (address === OPENSEA_SHARED_CONTRACT_ADDRESS)
+        return `${address}/${tokenId.slice(
+          0,
+          OPENSEA_SHARED_CONTRACT_COLLECTION_ID_LENGTH,
+        )}`
+      return address
+    },
   },
 )
 
-export const fetchFloorPrice = (address: string) => {
-  return floorPriceLoader.load(address) as Promise<Floor>
+export const fetchFloorPrice = (params: {
+  address: string
+  tokenId: string
+  chain: Chain
+}) => {
+  return floorPriceLoader.load(params) as Promise<Floor>
 }
 
 const rarityQuery = gql`
@@ -306,6 +329,7 @@ const userAssetsQuery = gql`
             assetContract {
               address
             }
+            tokenId
           }
         }
       }
