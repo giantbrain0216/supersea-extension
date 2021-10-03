@@ -140,11 +140,25 @@ const injectAssetInfo = () => {
   })
 }
 
+let injectedReactContainers: ReactDOM.Container[] = []
 const injectReact = (
   content: React.ReactElement,
   target: ReactDOM.Container,
 ) => {
+  injectedReactContainers.push(target)
   ReactDOM.render(<AppProvider>{content}</AppProvider>, target)
+}
+
+const destroyRemovedInjections = () => {
+  window.requestIdleCallback(() => {
+    injectedReactContainers = injectedReactContainers.filter((container) => {
+      if (!document.body.contains(container)) {
+        ReactDOM.unmountComponentAtNode(container as Element)
+        return false
+      }
+      return true
+    })
+  })
 }
 
 const injectBundleVerification = () => {
@@ -214,6 +228,10 @@ const throttledInjectBundleVerification = _.throttle(
   250,
 )
 const throttledInjectProfileSummary = _.throttle(injectProfileSummary, 250)
+const throttledDestroyRemovedInjections = _.throttle(
+  destroyRemovedInjections,
+  1000,
+)
 
 const setupInjections = async () => {
   injectBundleVerification()
@@ -224,6 +242,7 @@ const setupInjections = async () => {
     throttledInjectBundleVerification()
     throttledInjectAssetInfo()
     throttledInjectProfileSummary()
+    throttledDestroyRemovedInjections()
   })
 
   observer.observe(document, {
