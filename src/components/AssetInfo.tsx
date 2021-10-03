@@ -391,7 +391,6 @@ const AssetInfo = ({
         spacing={type === 'list' ? 0 : 1}
         alignItems="flex-start"
         width="100%"
-        zIndex={1}
       >
         <Flex width="100%" alignItems="center">
           <Text opacity={0.7} mr="0.5em">
