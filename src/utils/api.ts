@@ -213,6 +213,7 @@ export const fetchFloorPrice = (params: {
 const rarityQuery = gql`
   query RarityQuery($address: String!) {
     contract(address: $address) {
+      contractAddress
       tokenCount
       tokens {
         iteratorID
@@ -248,6 +249,7 @@ export const fetchRarities = async (address: string) => {
 const isRankedQuery = gql`
   query IsRankedQuery($address: String!) {
     contract(address: $address) {
+      contractAddress
       isRanked
     }
   }
