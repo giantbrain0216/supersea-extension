@@ -223,6 +223,7 @@ const AssetInfo = ({
         borderBottomRightRadius="5px"
         borderTopRightRadius={type === 'list' ? '5px' : 0}
         overflow="hidden"
+        zIndex={0}
       >
         <Logo
           position="absolute"
@@ -391,6 +392,7 @@ const AssetInfo = ({
         spacing={type === 'list' ? 0 : 1}
         alignItems="flex-start"
         width="100%"
+        zIndex={0}
       >
         <Flex width="100%" alignItems="center">
           <Text opacity={0.7} mr="0.5em">
