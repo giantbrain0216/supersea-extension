@@ -44,7 +44,7 @@ const addGlobalStyle = () => {
 
 const injectAssetInfo = () => {
   const gridNodes = Array.from(
-    document.querySelectorAll('.AssetSearchList--asset'),
+    document.querySelectorAll('article.AssetSearchList--asset'),
   )
   const listNodes = Array.from(document.querySelectorAll('.EventHistory--row'))
   const itemNode = document.querySelector('.item--summary > article')
@@ -70,9 +70,12 @@ const injectAssetInfo = () => {
           chain: page?.chain,
         }
       }
-      const link = node.querySelector(
-        type === 'grid' ? '.Asset--anchor' : '.AssetCell--link',
-      )
+      let link = null
+      if (type === 'grid') {
+        link = node.closest('.Asset--anchor')
+      } else {
+        link = node.querySelector('.AssetCell--link')
+      }
       if (link) {
         const [tokenType, address, tokenId] =
           link.getAttribute('href')?.split('/').slice(-3) || []
