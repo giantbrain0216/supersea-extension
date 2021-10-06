@@ -8,7 +8,7 @@ const GlobalStyles = () => {
       <Global
         styles={(theme: any) => ({
           ':host, :root': theme.__cssVars,
-          '.AssetSearchList--asset': {
+          'article.AssetSearchList--asset': {
             paddingBottom: ASSET_INFO_HEIGHT,
             position: 'relative',
           },
