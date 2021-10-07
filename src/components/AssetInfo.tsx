@@ -41,6 +41,7 @@ import EthereumIcon from './EthereumIcon'
 import Logo from './Logo'
 import { useUser } from '../utils/user'
 import { SCOPED_CLASS_NAME } from './ScopedCSSReset'
+import ScopedCSSPortal from './ScopedCSSPortal'
 
 export const HEIGHT = 85
 export const LIST_HEIGHT = 62
@@ -264,151 +265,146 @@ const AssetInfo = ({
         >
           More Options
         </MenuButton>
-        <Portal>
-          <span className={SCOPED_CLASS_NAME}>
-            <MenuList
-              borderColor={useColorModeValue('gray.200', 'gray.800')}
-              zIndex={2}
-              color={useColorModeValue('black', 'white')}
+        <ScopedCSSPortal>
+          <MenuList
+            borderColor={useColorModeValue('gray.200', 'gray.800')}
+            zIndex={2}
+            color={useColorModeValue('black', 'white')}
+            fontSize="sm"
+          >
+            <MenuGroup
+              // @ts-ignore
+              title={
+                <Text>
+                  Metadata{' '}
+                  {chain === 'polygon' ? (
+                    <Tag fontSize="xs" mt="-1px" ml="0.35em">
+                      Unavailable
+                    </Tag>
+                  ) : null}
+                </Text>
+              }
+              mr="0"
             >
-              <MenuGroup
-                // @ts-ignore
-                title={
-                  <Text>
-                    Metadata{' '}
-                    {chain === 'polygon' ? (
-                      <Tag fontSize="xs" mt="-1px" ml="0.35em">
-                        Unavailable
-                      </Tag>
-                    ) : null}
-                  </Text>
-                }
-                mr="0"
-              >
-                <MenuItem
-                  isDisabled={chain === 'polygon'}
-                  onClick={async () => {
-                    const assetInfo = await fetchAssetInfo(address, +tokenId)
-                    if (!assetInfo) {
-                      toast({
-                        duration: 3000,
-                        position: 'bottom-right',
-                        render: () => (
-                          <Toast
-                            text="Unable to queue OpenSea refresh at this moment."
-                            type="error"
-                          />
-                        ),
-                      })
-                      return
-                    }
-                    await triggerOpenSeaMetadataRefresh(assetInfo?.relayId)
+              <MenuItem
+                isDisabled={chain === 'polygon'}
+                onClick={async () => {
+                  const assetInfo = await fetchAssetInfo(address, +tokenId)
+                  if (!assetInfo) {
                     toast({
                       duration: 3000,
                       position: 'bottom-right',
                       render: () => (
-                        <Toast text="Opensea metadata refresh queued." />
+                        <Toast
+                          text="Unable to queue OpenSea refresh at this moment."
+                          type="error"
+                        />
                       ),
                     })
-                  }}
-                >
-                  Queue OpenSea refresh
-                </MenuItem>
-                <MenuItem
-                  isDisabled={chain === 'polygon'}
-                  onClick={async () => {
-                    try {
-                      const metadata = await fetchMetadata(address, +tokenId)
-                      const imgElement = container.querySelector(
-                        '.Image--image',
-                      ) as HTMLElement
-                      if (imgElement) {
-                        imgElement.style.opacity = '0'
-                        setTimeout(() => {
-                          imgElement.setAttribute('src', '')
-                        }, 0)
-                        setTimeout(() => {
-                          imgElement.style.opacity = '1'
-                          imgElement.setAttribute(
-                            'src',
-                            (metadata.image || metadata.image_url).replace(
-                              /^ipfs:\/\//,
-                              'https://ipfs.io/ipfs/',
-                            ),
-                          )
-                        }, 100)
-                      }
-                    } catch (err) {
-                      console.error(err)
-                      toast({
-                        duration: 3000,
-                        position: 'bottom-right',
-                        render: () => (
-                          <Toast
-                            text="Unable to load source image."
-                            type="error"
-                          />
-                        ),
-                      })
-                    }
-                  }}
-                >
-                  Replace image from source
-                </MenuItem>
-                <MenuItem
-                  isDisabled={chain === 'polygon'}
-                  onClick={async () => {
-                    let metadataUri = await fetchMetadataUriWithOpenSeaFallback(
-                      address,
-                      +tokenId,
-                    )
-                    if (!metadataUri) {
-                      toast({
-                        duration: 3000,
-                        position: 'bottom-right',
-                        render: () => (
-                          <Toast text="Unable to load metadata." type="error" />
-                        ),
-                      })
-                      return
-                    }
-                    if (/^data:/.test(metadataUri)) {
-                      const blob = await fetch(metadataUri).then((res) =>
-                        res.blob(),
-                      )
-                      window.open(URL.createObjectURL(blob), '_blank')
-                    } else {
-                      window.open(metadataUri, '_blank')
-                    }
-                  }}
-                >
-                  View Raw Data{' '}
-                  <Icon as={FiExternalLink} ml="0.3em" mt="-2px" />
-                </MenuItem>
-              </MenuGroup>
-              <MenuDivider />
-              <MenuGroup
-                title={chain === 'ethereum' ? 'Etherscan' : 'Polygonscan'}
+                    return
+                  }
+                  await triggerOpenSeaMetadataRefresh(assetInfo?.relayId)
+                  toast({
+                    duration: 3000,
+                    position: 'bottom-right',
+                    render: () => (
+                      <Toast text="Opensea metadata refresh queued." />
+                    ),
+                  })
+                }}
               >
-                <MenuItem
-                  onClick={() => {
-                    window.open(
-                      `https://${
-                        chain === 'ethereum'
-                          ? 'etherscan.io'
-                          : 'polygonscan.com'
-                      }/token/${address}`,
-                      '_blank',
+                Queue OpenSea refresh
+              </MenuItem>
+              <MenuItem
+                isDisabled={chain === 'polygon'}
+                onClick={async () => {
+                  try {
+                    const metadata = await fetchMetadata(address, +tokenId)
+                    const imgElement = container.querySelector(
+                      '.Image--image',
+                    ) as HTMLElement
+                    if (imgElement) {
+                      imgElement.style.opacity = '0'
+                      setTimeout(() => {
+                        imgElement.setAttribute('src', '')
+                      }, 0)
+                      setTimeout(() => {
+                        imgElement.style.opacity = '1'
+                        imgElement.setAttribute(
+                          'src',
+                          (metadata.image || metadata.image_url).replace(
+                            /^ipfs:\/\//,
+                            'https://ipfs.io/ipfs/',
+                          ),
+                        )
+                      }, 100)
+                    }
+                  } catch (err) {
+                    console.error(err)
+                    toast({
+                      duration: 3000,
+                      position: 'bottom-right',
+                      render: () => (
+                        <Toast
+                          text="Unable to load source image."
+                          type="error"
+                        />
+                      ),
+                    })
+                  }
+                }}
+              >
+                Replace image from source
+              </MenuItem>
+              <MenuItem
+                isDisabled={chain === 'polygon'}
+                onClick={async () => {
+                  let metadataUri = await fetchMetadataUriWithOpenSeaFallback(
+                    address,
+                    +tokenId,
+                  )
+                  if (!metadataUri) {
+                    toast({
+                      duration: 3000,
+                      position: 'bottom-right',
+                      render: () => (
+                        <Toast text="Unable to load metadata." type="error" />
+                      ),
+                    })
+                    return
+                  }
+                  if (/^data:/.test(metadataUri)) {
+                    const blob = await fetch(metadataUri).then((res) =>
+                      res.blob(),
                     )
-                  }}
-                >
-                  View contract{' '}
-                  <Icon as={FiExternalLink} ml="0.3em" mt="-2px" />
-                </MenuItem>
-              </MenuGroup>
-            </MenuList>
-          </span>
-        </Portal>
+                    window.open(URL.createObjectURL(blob), '_blank')
+                  } else {
+                    window.open(metadataUri, '_blank')
+                  }
+                }}
+              >
+                View Raw Data <Icon as={FiExternalLink} ml="0.3em" mt="-2px" />
+              </MenuItem>
+            </MenuGroup>
+            <MenuDivider />
+            <MenuGroup
+              title={chain === 'ethereum' ? 'Etherscan' : 'Polygonscan'}
+            >
+              <MenuItem
+                onClick={() => {
+                  window.open(
+                    `https://${
+                      chain === 'ethereum' ? 'etherscan.io' : 'polygonscan.com'
+                    }/token/${address}`,
+                    '_blank',
+                  )
+                }}
+              >
+                View contract <Icon as={FiExternalLink} ml="0.3em" mt="-2px" />
+              </MenuItem>
+            </MenuGroup>
+          </MenuList>
+        </ScopedCSSPortal>
       </Menu>
       <VStack
         spacing={type === 'list' ? 0 : 1}
