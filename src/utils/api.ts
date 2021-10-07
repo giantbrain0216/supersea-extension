@@ -3,8 +3,10 @@ import { request, gql, GraphQLClient } from 'graphql-request'
 import { fetchMetadataUri } from '../utils/web3'
 import { RateLimit, Sema } from 'async-sema'
 
-const OPENSEA_SHARED_CONTRACT_ADDRESS =
-  '0x495f947276749ce646f68ac8c248420045cb7b5e'
+const OPENSEA_SHARED_CONTRACT_ADDRESSES = [
+  '0x495f947276749ce646f68ac8c248420045cb7b5e',
+  '0x2953399124f0cbb46d2cbacd8a89cf0599974963',
+]
 // Not exactly right but good enough to split tokenIds into their unique collections
 const OPENSEA_SHARED_CONTRACT_COLLECTION_ID_LENGTH = 60
 
@@ -192,7 +194,7 @@ const floorPriceLoader = new DataLoader(
     batchScheduleFn: (callback) => setTimeout(callback, 250),
     maxBatchSize: 10,
     cacheKeyFn: ({ address, tokenId }) => {
-      if (address === OPENSEA_SHARED_CONTRACT_ADDRESS)
+      if (OPENSEA_SHARED_CONTRACT_ADDRESSES.includes(address))
         return `${address}/${tokenId.slice(
           0,
           OPENSEA_SHARED_CONTRACT_COLLECTION_ID_LENGTH,
