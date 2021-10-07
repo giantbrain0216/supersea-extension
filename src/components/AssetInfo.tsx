@@ -216,8 +216,10 @@ const AssetInfo = ({
         rarity && isMember ? rarity.type.color.dark : 'gray.600',
       )}
       onClick={(e) => {
+        if ((e.target as HTMLElement).tagName !== 'A') {
+          e.preventDefault()
+        }
         e.stopPropagation()
-        e.preventDefault()
       }}
     >
       <Box
@@ -431,15 +433,16 @@ const AssetInfo = ({
           {floor ? (
             <>
               {floor?.currency === 'ETH' ? <EthereumIcon /> : null}
-              <Link href={floor.floorSearchUrl}>
-                {floor === null ? (
-                  <Text>Unavailable</Text>
-                ) : (
-                  <Text verticalAlign="middle" fontWeight="500">
-                    {floor.price}
-                    {floor.currency !== 'ETH' ? ` ${floor.currency}` : null}
-                  </Text>
-                )}
+              <Link
+                href={floor.floorSearchUrl}
+                fontWeight="500"
+                verticalAlign="middle"
+              >
+                {floor === null
+                  ? 'Unavailable'
+                  : `${floor.price} ${
+                      floor.currency !== 'ETH' ? ` ${floor.currency}` : ''
+                    }`}
               </Link>
             </>
           ) : (

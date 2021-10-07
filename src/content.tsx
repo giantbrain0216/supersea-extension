@@ -73,6 +73,9 @@ const injectAssetInfo = () => {
       let link = null
       if (type === 'grid') {
         link = node.closest('.Asset--anchor')
+        if (!link) {
+          link = node.querySelector('.Asset--anchor')
+        }
       } else {
         link = node.querySelector('.AssetCell--link')
       }

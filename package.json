@@ -34,7 +34,8 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build && yarn build-extension-scripts",
+    "build": "react-scripts build && yarn clean-build-extension-scripts",
+    "clean-build-extension-scripts": "parcel build src/content.tsx src/background.ts --dist-dir build/static/js --no-cache",
     "build-extension-scripts": "parcel build src/content.tsx src/background.ts --dist-dir build/static/js",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
