@@ -1,5 +1,7 @@
 import React, { useContext } from 'react'
 
+export const MEMBER_ROLES = ['SUBSCRIBER', 'MEMBER', 'ADMIN']
+
 export type User = {
   isMember: boolean
 }

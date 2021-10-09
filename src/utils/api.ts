@@ -75,6 +75,9 @@ const refreshTokenQuery = gql`
     refreshToken {
       success
       accessToken
+      account {
+        role
+      }
     }
   }
 `
@@ -84,36 +87,30 @@ const tokenClient = new GraphQLClient('https://api.nonfungible.tools/graphql', {
   mode: 'cors',
 })
 
-const accessTokenSema = new Sema(1)
-let cachedAccessToken: string | null | undefined = undefined
-export const getAccessToken = async (refresh = false) => {
-  await accessTokenSema.acquire()
+const userSema = new Sema(1)
+let cachedUser:
+  | { accessToken: string; role: string }
+  | null
+  | undefined = undefined
+export const getUser = async (refresh = false) => {
+  await userSema.acquire()
   if (!refresh) {
-    if (cachedAccessToken !== undefined) {
-      accessTokenSema.release()
-      return cachedAccessToken
-    }
-
-    const storedToken = await new Promise((resolve) =>
-      chrome.storage.local.get(['accessToken'], ({ accessToken }) => {
-        resolve(accessToken)
-      }),
-    )
-    if (storedToken) {
-      cachedAccessToken = storedToken as string
-      accessTokenSema.release()
-      return storedToken
+    if (cachedUser !== undefined) {
+      userSema.release()
+      return cachedUser
     }
   }
   const {
-    refreshToken: { accessToken },
+    refreshToken: {
+      accessToken,
+      account: { role },
+    },
   } = await tokenClient.request(refreshTokenQuery)
 
-  chrome.storage.local.set({ accessToken })
-  cachedAccessToken = accessToken
-  accessTokenSema.release()
+  cachedUser = { accessToken, role }
+  userSema.release()
 
-  return accessToken
+  return cachedUser
 }
 
 const nonFungibleRequest = async (
@@ -121,7 +118,8 @@ const nonFungibleRequest = async (
   variables: any = {},
   refreshAccessToken = false,
 ): Promise<any> => {
-  const accessToken = await getAccessToken(refreshAccessToken)
+  const user = await getUser(refreshAccessToken)
+  const accessToken = user?.accessToken
   try {
     const res = await request(
       'https://cdn.nonfungible.tools/graphql',

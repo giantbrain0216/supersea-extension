@@ -7,8 +7,8 @@ import {
 } from '@emotion/react'
 import theme from '../theme'
 import { SCOPED_CLASS_NAME } from './ScopedCSSReset'
-import { User, UserProvider } from '../utils/user'
-import { getAccessToken } from '../utils/api'
+import { MEMBER_ROLES, User, UserProvider } from '../utils/user'
+import { getUser } from '../utils/api'
 import EventEmitter from 'events'
 
 const ThemeProvider = (props: EmotionThemeProviderProps) => {
@@ -46,8 +46,10 @@ const AppProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [user, setUser] = useState<User | null>(null)
   useEffect(() => {
     ;(async () => {
-      const accessToken = await getAccessToken()
-      setUser({ isMember: accessToken !== null })
+      const user = await getUser()
+      setUser({
+        isMember: Boolean(user?.role && MEMBER_ROLES.includes(user.role)),
+      })
     })()
   }, [])
   if (!user) return null
