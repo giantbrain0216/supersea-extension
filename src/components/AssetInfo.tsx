@@ -48,6 +48,7 @@ export const HEIGHT = 85
 export const LIST_HEIGHT = 62
 
 const queueRefreshRateLimit = RateLimit(1)
+const replaceImageRateLimit = RateLimit(3)
 
 const RARITY_TYPES = [
   {
@@ -154,8 +155,65 @@ const AssetInfo = ({
   const [floor, setFloor] = useState<Floor | null | undefined>(undefined)
   const [refreshState, setRefreshState] = useState<RefreshState>('IDLE')
   const [isAutoQueued, setIsAutoQueued] = useState(false)
+  const [isAutoImageReplaced, setIsAutoImageReplaced] = useState(false)
 
   const toast = useToast()
+
+  const replaceImage = useCallback(async () => {
+    await replaceImageRateLimit()
+    try {
+      const metadata = await fetchMetadata(address, +tokenId)
+      const imgElement = container.querySelector('.Image--image') as HTMLElement
+      if (imgElement) {
+        imgElement.style.opacity = '0'
+        setTimeout(() => {
+          imgElement.setAttribute('src', '')
+        }, 0)
+        setTimeout(() => {
+          imgElement.style.opacity = '1'
+          imgElement.setAttribute(
+            'src',
+            (metadata.image || metadata.image_url).replace(
+              /^ipfs:\/\//,
+              'https://ipfs.io/ipfs/',
+            ),
+          )
+        }, 100)
+      }
+    } catch (err) {
+      console.error(err)
+      toast({
+        duration: 3000,
+        position: 'bottom-right',
+        render: () => (
+          <Toast text="Unable to load source image." type="error" />
+        ),
+      })
+    }
+  }, [address, container, toast, tokenId])
+
+  const autoReplaceImage = useCallback(() => {
+    if (globalConfig.autoImageReplaceAddresses[address]) {
+      setIsAutoImageReplaced(true)
+      if (!globalConfig.imageReplaced[`${address}/${tokenId}`]) {
+        globalConfig.imageReplaced[`${address}/${tokenId}`] = true
+        replaceImage()
+      }
+    } else if (isAutoImageReplaced) {
+      setIsAutoImageReplaced(false)
+    }
+  }, [address, globalConfig, replaceImage, isAutoImageReplaced, tokenId])
+
+  useEffect(() => {
+    events.addListener('toggleAutoReplaceImage', autoReplaceImage)
+    return () => {
+      events.removeListener('toggleAutoReplaceImage', autoReplaceImage)
+    }
+  }, [autoReplaceImage, events])
+
+  useEffect(() => {
+    autoReplaceImage()
+  }, [autoReplaceImage])
 
   const queueRefresh = useCallback(async () => {
     if (refreshState === 'QUEUING') return
@@ -335,7 +393,10 @@ const AssetInfo = ({
             >
               <MenuItem isDisabled={chain === 'polygon'} onClick={queueRefresh}>
                 Queue OpenSea refresh
-              </MenuItem>{' '}
+              </MenuItem>
+              <MenuItem isDisabled={chain === 'polygon'} onClick={replaceImage}>
+                Replace image from source
+              </MenuItem>
               <MenuItem
                 isDisabled={chain === 'polygon'}
                 onClick={async () => {
@@ -358,7 +419,7 @@ const AssetInfo = ({
                 }}
               >
                 <Text maxWidth="210px">
-                  Mass-queue OpenSea refresh for collection{' '}
+                  Mass-queue OpenSea refresh for collection
                   {isAutoQueued && (
                     <CheckIcon
                       width="12px"
@@ -372,43 +433,36 @@ const AssetInfo = ({
               <MenuItem
                 isDisabled={chain === 'polygon'}
                 onClick={async () => {
-                  try {
-                    const metadata = await fetchMetadata(address, +tokenId)
-                    const imgElement = container.querySelector(
-                      '.Image--image',
-                    ) as HTMLElement
-                    if (imgElement) {
-                      imgElement.style.opacity = '0'
-                      setTimeout(() => {
-                        imgElement.setAttribute('src', '')
-                      }, 0)
-                      setTimeout(() => {
-                        imgElement.style.opacity = '1'
-                        imgElement.setAttribute(
-                          'src',
-                          (metadata.image || metadata.image_url).replace(
-                            /^ipfs:\/\//,
-                            'https://ipfs.io/ipfs/',
-                          ),
-                        )
-                      }, 100)
-                    }
-                  } catch (err) {
-                    console.error(err)
-                    toast({
-                      duration: 3000,
-                      position: 'bottom-right',
-                      render: () => (
-                        <Toast
-                          text="Unable to load source image."
-                          type="error"
-                        />
-                      ),
+                  globalConfig.autoImageReplaceAddresses[
+                    address
+                  ] = !globalConfig.autoImageReplaceAddresses[address]
+
+                  if (!globalConfig.autoImageReplaceAddresses[address]) {
+                    Object.keys(globalConfig.imageReplaced).forEach((key) => {
+                      const [_address] = key.split('/')
+                      if (address === _address) {
+                        globalConfig.imageReplaced[key] = false
+                      }
                     })
                   }
+
+                  events.emit('toggleAutoReplaceImage', {
+                    value: globalConfig.autoImageReplaceAddresses[address],
+                    address,
+                  })
                 }}
               >
-                Replace image from source
+                <Text maxWidth="210px">
+                  Mass-replace image from source for collection
+                  {isAutoImageReplaced && (
+                    <CheckIcon
+                      width="12px"
+                      height="auto"
+                      display="inline-block"
+                      marginLeft="3px"
+                    />
+                  )}
+                </Text>
               </MenuItem>
               <MenuItem
                 isDisabled={chain === 'polygon'}

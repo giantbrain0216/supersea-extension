@@ -40,6 +40,8 @@ export const EventEmitterContext = React.createContext(events)
 export const GlobalConfigContext = React.createContext({
   autoQueueAddresses: {} as Record<string, boolean>,
   refreshQueued: {} as Record<string, boolean>,
+  autoImageReplaceAddresses: {} as Record<string, boolean>,
+  imageReplaced: {} as Record<string, boolean>,
 })
 
 const AppProvider = ({ children }: React.PropsWithChildren<{}>) => {
