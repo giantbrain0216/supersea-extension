@@ -15,6 +15,13 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
   ({ requestHeaders, tabId }) => {
     if (requestHeaders && tabId) {
       const keyedHeaders = _.keyBy(requestHeaders, 'name')
+      if (keyedHeaders['x-signed-query']?.value === 'SuperSea') {
+        return {
+          requestHeaders: requestHeaders.filter(
+            ({ name }) => name !== 'x-signed-query',
+          ),
+        }
+      }
       savedOpenSeaHeaders = HEADERS_OF_INTEREST.reduce<Record<string, string>>(
         (acc, header) => {
           acc[header] =
@@ -37,9 +44,26 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       .then((res) => {
         sendResponse(res)
       })
+  } else if (request.method === 'ping') {
+    sendResponse('pong')
   }
   return true
 })
+
+chrome.webRequest.onResponseStarted.addListener(
+  ({ responseHeaders }) => {
+    const rateLimitHeader =
+      responseHeaders &&
+      responseHeaders.find(({ name }) => name === 'x-ratelimit-remaining')
+    if (rateLimitHeader) {
+      chrome.storage.local.set({
+        openSeaRateLimitRemaining: +(rateLimitHeader.value || 0),
+      })
+    }
+  },
+  { urls: ['https://api.opensea.io/*'] },
+  ['responseHeaders'],
+)
 
 chrome.action.onClicked.addListener(() => {
   chrome.tabs.create({ url: 'https://nonfungible.tools/supersea' })

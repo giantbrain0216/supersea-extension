@@ -31,7 +31,7 @@ export type AssetInfo = {
 
 export type Chain = 'ethereum' | 'polygon'
 
-const openSeaRateLimit = RateLimit(3)
+const openSeaSema = new Sema(3)
 
 const getOpenSeaHeaders = () => {
   return new Promise((resolve) => {
@@ -42,17 +42,32 @@ const getOpenSeaHeaders = () => {
 }
 
 const openSeaRequest = async (query: any, variables: any = {}) => {
-  await openSeaRateLimit()
-  let resp = null
-  const headers = await getOpenSeaHeaders()
+  await openSeaSema.acquire()
+  let res = null
+  const headers = (await getOpenSeaHeaders()) as any
   try {
-    resp = await retryingOpenSeaRequest(query, variables, headers)
+    res = await request('https://api.opensea.io/graphql/', query, variables, {
+      ...headers,
+      'X-SIGNED-QUERY': 'SuperSea',
+    })
   } catch (err: any) {
     if (err.response && err.response.data) {
-      resp = err.response.data
+      res = err.response.data
     }
   }
-  return resp
+  chrome.storage.local.get(
+    ['openSeaRateLimitRemaining'],
+    ({ openSeaRateLimitRemaining }) => {
+      if (openSeaRateLimitRemaining > 10) {
+        openSeaSema.release()
+      } else {
+        setTimeout(() => {
+          openSeaSema.release()
+        }, 2500)
+      }
+    },
+  )
+  return res
 }
 
 const refreshTokenQuery = gql`
@@ -127,32 +142,6 @@ const nonFungibleRequest = async (
       return nonFungibleRequest(query, variables, true)
     }
     throw err
-  }
-}
-
-const retryingOpenSeaRequest = async (
-  query: any,
-  variables: any,
-  headers: any,
-  wait = 0,
-): Promise<any> => {
-  if (wait) await new Promise((resolve) => setTimeout(resolve, wait))
-  try {
-    const resp = await request(
-      'https://api.opensea.io/graphql/',
-      query,
-      variables,
-      headers,
-    )
-    return resp
-  } catch (err: any) {
-    if (err.response?.status === 429) {
-      const wait =
-        +err.response.error.match(/Please wait (\d+) microseconds./)[1] / 1000
-      return await retryingOpenSeaRequest(query, variables, headers, wait + 25)
-    } else {
-      throw err
-    }
   }
 }
 
@@ -346,6 +335,7 @@ const userAssetsQuery = gql`
   }
 `
 
+const fetchAllAssetsRateLimit = RateLimit(3)
 export const fetchAllAssetsForUser = async ({
   userName,
   ensName,
@@ -366,6 +356,7 @@ export const fetchAllAssetsForUser = async ({
   let cursor = null
   let result: any[] = []
   while (hasNextPage) {
+    await fetchAllAssetsRateLimit()
     const res: any = await openSeaRequest(userAssetsQuery, {
       cursor,
       ...selector,
