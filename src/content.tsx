@@ -211,9 +211,9 @@ const injectProfileSummary = () => {
     return
 
   const userName = accountTitle.innerText
-  const ensName = (
-    accountBanner.querySelector('.AccountHeader--name') as HTMLElement | null
-  )?.innerText
+  const ensName = (accountBanner.querySelector(
+    '.AccountHeader--name',
+  ) as HTMLElement | null)?.innerText
   const addressSlug = window.location.pathname.split('/')[1]
   const address =
     addressSlug === 'account'
@@ -258,5 +258,15 @@ const setupInjections = async () => {
   })
 }
 
+// We need to keep the background script alive for webRequest handlers
+const setupKeepAlivePing = () => {
+  setInterval(() => {
+    chrome.runtime.sendMessage({
+      method: 'ping',
+    })
+  }, 5000)
+}
+
 setupInjections()
+setupKeepAlivePing()
 addGlobalStyle()

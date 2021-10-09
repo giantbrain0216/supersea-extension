@@ -9,8 +9,9 @@ import theme from '../theme'
 import { SCOPED_CLASS_NAME } from './ScopedCSSReset'
 import { User, UserProvider } from '../utils/user'
 import { getAccessToken } from '../utils/api'
+import EventEmitter from 'events'
 
-export const ThemeProvider = (props: EmotionThemeProviderProps) => {
+const ThemeProvider = (props: EmotionThemeProviderProps) => {
   const { theme, children } = props
   const computedTheme = React.useMemo(() => toCSSVar(theme), [theme])
   return (
@@ -20,6 +21,7 @@ export const ThemeProvider = (props: EmotionThemeProviderProps) => {
   )
 }
 
+// Providers from ChakraProvider, without the global styles (we add these separately once)
 const LeanChakraProvider = ({ children }: React.PropsWithChildren<{}>) => {
   return (
     <IdProvider>
@@ -32,7 +34,14 @@ const LeanChakraProvider = ({ children }: React.PropsWithChildren<{}>) => {
   )
 }
 
-// Providers from ChakraProvider, without the global styles (we add these separately once)
+const events = new EventEmitter()
+events.setMaxListeners(1000)
+export const EventEmitterContext = React.createContext(events)
+export const GlobalConfigContext = React.createContext({
+  autoQueueAddresses: {} as Record<string, boolean>,
+  refreshQueued: {} as Record<string, boolean>,
+})
+
 const AppProvider = ({ children }: React.PropsWithChildren<{}>) => {
   const [user, setUser] = useState<User | null>(null)
   useEffect(() => {

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useContext, useCallback } from 'react'
+import { CheckIcon } from '@chakra-ui/icons'
 import {
   Box,
   Flex,
@@ -14,9 +15,7 @@ import {
   MenuItem,
   MenuList,
   IconButton,
-  Portal,
   useToast,
-  DarkMode,
   Tag,
   HStack,
   useColorModeValue,
@@ -40,11 +39,15 @@ import Toast from './Toast'
 import EthereumIcon from './EthereumIcon'
 import Logo from './Logo'
 import { useUser } from '../utils/user'
-import { SCOPED_CLASS_NAME } from './ScopedCSSReset'
 import ScopedCSSPortal from './ScopedCSSPortal'
+import RefreshIndicator, { RefreshState } from './RefreshIndicator'
+import { EventEmitterContext, GlobalConfigContext } from './AppProvider'
+import { RateLimit } from 'async-sema'
 
 export const HEIGHT = 85
 export const LIST_HEIGHT = 62
+
+const queueRefreshRateLimit = RateLimit(1)
 
 const RARITY_TYPES = [
   {
@@ -142,12 +145,53 @@ const AssetInfo = ({
   chain: Chain
   container: HTMLElement
 }) => {
+  const events = useContext(EventEmitterContext)
+  const globalConfig = useContext(GlobalConfigContext)
+
   const { isMember } = useUser() || { isMember: false }
 
   const [rarity, setRarity] = useState<Rarity | null | undefined>(undefined)
   const [floor, setFloor] = useState<Floor | null | undefined>(undefined)
+  const [refreshState, setRefreshState] = useState<RefreshState>('IDLE')
+  const [isAutoQueued, setIsAutoQueued] = useState(false)
 
   const toast = useToast()
+
+  const queueRefresh = useCallback(async () => {
+    if (refreshState === 'QUEUING') return
+    setRefreshState('QUEUING')
+    await queueRefreshRateLimit()
+    const assetInfo = await fetchAssetInfo(address, +tokenId)
+    if (!assetInfo) {
+      setRefreshState('FAILED')
+      return
+    }
+    await triggerOpenSeaMetadataRefresh(assetInfo?.relayId)
+    setRefreshState('QUEUED')
+  }, [address, refreshState, tokenId])
+
+  const autoQueueRefresh = useCallback(() => {
+    if (globalConfig.autoQueueAddresses[address]) {
+      setIsAutoQueued(true)
+      if (!globalConfig.refreshQueued[`${address}/${tokenId}`]) {
+        globalConfig.refreshQueued[`${address}/${tokenId}`] = true
+        queueRefresh()
+      }
+    } else if (isAutoQueued) {
+      setIsAutoQueued(false)
+    }
+  }, [address, globalConfig, isAutoQueued, queueRefresh, tokenId])
+
+  useEffect(() => {
+    events.addListener('toggleAutoQueue', autoQueueRefresh)
+    return () => {
+      events.removeListener('toggleAutoQueue', autoQueueRefresh)
+    }
+  }, [autoQueueRefresh, events])
+
+  useEffect(() => {
+    autoQueueRefresh()
+  }, [autoQueueRefresh])
 
   useEffect(() => {
     if (!(address && tokenId)) return
@@ -237,7 +281,7 @@ const AssetInfo = ({
       >
         <Logo
           position="absolute"
-          opacity={useColorModeValue(rarity ? 0.75 : 0.35, 0.35)}
+          opacity={useColorModeValue(rarity ? 0.75 : 0.35, rarity ? 0.15 : 0.1)}
           width={type === 'list' ? '70px' : '120px'}
           height={type === 'list' ? '70px' : '120px'}
           top="50%"
@@ -248,8 +292,11 @@ const AssetInfo = ({
             'white',
           )}
         />
+        <Box position="absolute" bottom="2" right="2">
+          <RefreshIndicator state={refreshState} />
+        </Box>
       </Box>
-      <Menu isLazy autoSelect={false}>
+      <Menu autoSelect={false}>
         <MenuButton
           as={IconButton}
           icon={<Icon as={FiMoreHorizontal} />}
@@ -286,34 +333,41 @@ const AssetInfo = ({
               }
               mr="0"
             >
+              <MenuItem isDisabled={chain === 'polygon'} onClick={queueRefresh}>
+                Queue OpenSea refresh
+              </MenuItem>{' '}
               <MenuItem
                 isDisabled={chain === 'polygon'}
                 onClick={async () => {
-                  const assetInfo = await fetchAssetInfo(address, +tokenId)
-                  if (!assetInfo) {
-                    toast({
-                      duration: 3000,
-                      position: 'bottom-right',
-                      render: () => (
-                        <Toast
-                          text="Unable to queue OpenSea refresh at this moment."
-                          type="error"
-                        />
-                      ),
+                  globalConfig.autoQueueAddresses[address] = !globalConfig
+                    .autoQueueAddresses[address]
+
+                  if (!globalConfig.autoQueueAddresses[address]) {
+                    Object.keys(globalConfig.refreshQueued).forEach((key) => {
+                      const [_address] = key.split('/')
+                      if (address === _address) {
+                        globalConfig.refreshQueued[key] = false
+                      }
                     })
-                    return
                   }
-                  await triggerOpenSeaMetadataRefresh(assetInfo?.relayId)
-                  toast({
-                    duration: 3000,
-                    position: 'bottom-right',
-                    render: () => (
-                      <Toast text="Opensea metadata refresh queued." />
-                    ),
+
+                  events.emit('toggleAutoQueue', {
+                    value: globalConfig.autoQueueAddresses[address],
+                    address,
                   })
                 }}
               >
-                Queue OpenSea refresh
+                <Text maxWidth="210px">
+                  Mass-queue OpenSea refresh for collection{' '}
+                  {isAutoQueued && (
+                    <CheckIcon
+                      width="12px"
+                      height="auto"
+                      display="inline-block"
+                      marginLeft="3px"
+                    />
+                  )}
+                </Text>
               </MenuItem>
               <MenuItem
                 isDisabled={chain === 'polygon'}
@@ -446,6 +500,20 @@ const AssetInfo = ({
           )}
         </Flex>
       </VStack>
+      <Box
+        position="absolute"
+        pointerEvents="none"
+        width="100%"
+        top="0"
+        right="0"
+        height="100%"
+        overflow="hidden"
+        zIndex={0}
+      >
+        <Box position="absolute" bottom="2" right="2">
+          <RefreshIndicator state={refreshState} />
+        </Box>
+      </Box>
     </Flex>
   )
 }
