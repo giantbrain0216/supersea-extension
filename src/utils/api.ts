@@ -32,6 +32,7 @@ export type AssetInfo = {
 export type Chain = 'ethereum' | 'polygon'
 
 const openSeaSema = new Sema(3)
+const openSeaRateLimit = RateLimit(3)
 
 const getOpenSeaHeaders = () => {
   return new Promise((resolve) => {
@@ -43,6 +44,7 @@ const getOpenSeaHeaders = () => {
 
 const openSeaRequest = async (query: any, variables: any = {}) => {
   await openSeaSema.acquire()
+  await openSeaRateLimit()
   let res = null
   const headers = (await getOpenSeaHeaders()) as any
   try {

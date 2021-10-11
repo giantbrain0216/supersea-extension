@@ -279,8 +279,8 @@ const AssetInfo = ({
             })
             return
           }
-          setRarity(null)
         }
+        setRarity(null)
       } else {
         const isRanked = await fetchIsRanked(address)
         setRarity({
