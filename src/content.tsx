@@ -6,6 +6,7 @@ import BundleVerification from './components/BundleVerification'
 import AssetInfo from './components/AssetInfo'
 import ProfileSummary from './components/ProfileSummary'
 import GlobalStyles from './components/GlobalStyles'
+import { getExtensionConfig } from './utils/extensionConfig'
 
 const NODE_BUNDLE_PROCESSED_DATA_KEY = '__Processed__Bundle'
 const NODE_ASSET_PROCESSED_DATA_KEY = '__Processed__Asset'
@@ -252,7 +253,6 @@ const setupInjections = async () => {
   injectBundleVerification()
   injectAssetInfo()
   injectProfileSummary()
-  injectInPageContextScript()
 
   const observer = new MutationObserver(() => {
     throttledInjectBundleVerification()
@@ -277,6 +277,16 @@ const setupKeepAlivePing = () => {
   }, 5000)
 }
 
-setupInjections()
-setupKeepAlivePing()
-addGlobalStyle()
+const initialize = async () => {
+  const config = await getExtensionConfig()
+  if (config.enabled) {
+    setupInjections()
+    setupKeepAlivePing()
+    addGlobalStyle()
+  }
+  if (config.quickBuyEnabled) {
+    injectInPageContextScript()
+  }
+}
+
+initialize()

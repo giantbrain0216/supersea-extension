@@ -6,7 +6,8 @@
   "action": {
     "icons": {
       "128": "icon.png"
-    }
+    },
+    "default_popup": "index.html"
   },
   "content_scripts": [
     {
