@@ -104,13 +104,10 @@ export const getUser = async (refresh = false) => {
     }
   }
   const {
-    refreshToken: {
-      accessToken,
-      account: { role },
-    },
+    refreshToken: { accessToken, account },
   } = await tokenClient.request(refreshTokenQuery)
 
-  cachedUser = { accessToken, role }
+  cachedUser = { accessToken, role: account?.role || 'FREE' }
   userSema.release()
 
   return cachedUser

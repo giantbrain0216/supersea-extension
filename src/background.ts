@@ -95,13 +95,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       .then((res) => res.json())
       .then((json) => {
         const {
-          refreshToken: {
-            accessToken,
-            account: { role },
-          },
+          refreshToken: { accessToken, account },
         } = json.data
 
-        sendResponse({ accessToken, role })
+        sendResponse({ accessToken, role: account?.role || 'FREE' })
       })
   }
   return true

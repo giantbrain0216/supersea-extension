@@ -9,6 +9,7 @@ const LockedFeature = ({
   return (
     <Link
       href="https://nonfungible.tools/connect"
+      target="_blank"
       _hover={{ textDecoration: 'none' }}
     >
       <Tag
