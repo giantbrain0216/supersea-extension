@@ -44,6 +44,7 @@ import RefreshIndicator, { RefreshState } from './RefreshIndicator'
 import { EventEmitterContext, GlobalConfigContext } from './AppProvider'
 import { RateLimit } from 'async-sema'
 import BuyNowButton from './BuyNowButton'
+import LockedFeature from './LockedFeature'
 
 export const HEIGHT = 85
 export const LIST_HEIGHT = 62
@@ -83,13 +84,12 @@ type Rarity = {
 }
 const RarityBadge = ({
   rarity,
-  isMember,
+  isSubscriber,
 }: {
   rarity: Rarity | null
-  isMember: boolean
+  isSubscriber: boolean
 }) => {
-  const memberTagBg = useColorModeValue('blue.200', 'blue.500')
-  if (isMember) {
+  if (isSubscriber) {
     return (
       <Tooltip
         isDisabled={!rarity}
@@ -117,19 +117,7 @@ const RarityBadge = ({
     )
   }
   if (rarity && rarity.isRanked) {
-    return (
-      <Link
-        href="https://nonfungible.tools/connect"
-        _hover={{ textDecoration: 'none' }}
-      >
-        <Tag bg={memberTagBg} size="sm">
-          <HStack spacing="1px">
-            <LockIcon height="9px" />
-            <Box mt="1px">Member</Box>
-          </HStack>
-        </Tag>
-      </Link>
-    )
+    return <LockedFeature />
   }
   return <Text fontWeight="500">Unranked</Text>
 }
@@ -150,7 +138,7 @@ const AssetInfo = ({
   const events = useContext(EventEmitterContext)
   const globalConfig = useContext(GlobalConfigContext)
 
-  const { isMember } = useUser() || { isMember: false }
+  const { isSubscriber } = useUser() || { isSubscriber: false }
 
   const [rarity, setRarity] = useState<Rarity | null | undefined>(undefined)
   const [floor, setFloor] = useState<Floor | null | undefined>(undefined)
@@ -259,7 +247,7 @@ const AssetInfo = ({
       setFloor(floor)
     })()
     ;(async () => {
-      if (isMember) {
+      if (isSubscriber) {
         if (chain === 'polygon') {
           setRarity(null)
           return
@@ -323,8 +311,8 @@ const AssetInfo = ({
         },
       }}
       bg={useColorModeValue(
-        rarity && isMember ? rarity.type.color.light : 'gray.50',
-        rarity && isMember ? rarity.type.color.dark : 'gray.600',
+        rarity && isSubscriber ? rarity.type.color.light : 'gray.50',
+        rarity && isSubscriber ? rarity.type.color.dark : 'gray.600',
       )}
       onClick={(e) => {
         if ((e.target as HTMLElement).tagName !== 'A') {
@@ -354,7 +342,7 @@ const AssetInfo = ({
           right="-16px"
           transform="translateY(-50%)"
           color={useColorModeValue(
-            rarity && isMember ? 'white' : 'gray.300',
+            rarity && isSubscriber ? 'white' : 'gray.300',
             'white',
           )}
         />
@@ -406,8 +394,9 @@ const AssetInfo = ({
                 Replace image from source
               </MenuItem>
               <MenuItem
-                isDisabled={chain === 'polygon'}
+                isDisabled={chain === 'polygon' || !isSubscriber}
                 onClick={async () => {
+                  if (!isSubscriber) return
                   globalConfig.autoQueueAddresses[address] = !globalConfig
                     .autoQueueAddresses[address]
 
@@ -428,6 +417,11 @@ const AssetInfo = ({
               >
                 <Text maxWidth="210px">
                   Mass-queue OpenSea refresh for collection
+                  {!isSubscriber && (
+                    <Box ml="1" display="inline-block">
+                      <LockedFeature />
+                    </Box>
+                  )}
                   {isAutoQueued && (
                     <CheckIcon
                       width="12px"
@@ -439,8 +433,9 @@ const AssetInfo = ({
                 </Text>
               </MenuItem>
               <MenuItem
-                isDisabled={chain === 'polygon'}
+                isDisabled={chain === 'polygon' || !isSubscriber}
                 onClick={async () => {
+                  if (!isSubscriber) return
                   globalConfig.autoImageReplaceAddresses[
                     address
                   ] = !globalConfig.autoImageReplaceAddresses[address]
@@ -462,6 +457,11 @@ const AssetInfo = ({
               >
                 <Text maxWidth="210px">
                   Mass-replace image from source for collection
+                  {!isSubscriber && (
+                    <Box ml="1" display="inline-block">
+                      <LockedFeature />
+                    </Box>
+                  )}
                   {isAutoImageReplaced && (
                     <CheckIcon
                       width="12px"
@@ -533,7 +533,7 @@ const AssetInfo = ({
             Rank:
           </Text>
           {rarity !== undefined ? (
-            <RarityBadge isMember={isMember} rarity={rarity} />
+            <RarityBadge isSubscriber={isSubscriber} rarity={rarity} />
           ) : (
             <Spinner ml={1} width={3} height={3} opacity={0.75} />
           )}

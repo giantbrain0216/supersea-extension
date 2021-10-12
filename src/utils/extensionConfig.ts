@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react'
+
 export type ExtensionConfig = {
   enabled: boolean
   quickBuyEnabled: boolean
@@ -27,4 +29,21 @@ export const saveExtensionConfig = (config: ExtensionConfig) => {
   if (process.env.NODE_ENV === 'production') {
     chrome.storage.local.set({ extensionConfig: config })
   }
+}
+
+export const useExtensionConfig = () => {
+  const [config, setConfig] = useState<null | ExtensionConfig>(null)
+  useEffect(() => {
+    ;(async () => {
+      setConfig(await getExtensionConfig())
+    })()
+  }, [])
+
+  return [
+    config,
+    (updatedConfig: ExtensionConfig) => {
+      setConfig(updatedConfig)
+      saveExtensionConfig(updatedConfig)
+    },
+  ] as const
 }

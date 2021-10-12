@@ -2,22 +2,28 @@ import {
   Switch,
   FormControl,
   FormLabel,
+  HStack,
   Alert,
   AlertIcon,
+  Box,
   Text,
   Link,
 } from '@chakra-ui/react'
 import React from 'react'
+import { User } from '../../utils/user'
+import LockedFeature from '../LockedFeature'
 
 const QuickBuyToggle = ({
   isChecked,
   isDisabled,
+  user,
   onChange,
   switchRef,
   ...rest
 }: {
   isChecked: boolean
   isDisabled: boolean
+  user: User
   onChange: (isChecked: boolean) => void
   switchRef: React.RefObject<HTMLInputElement>
 } & Omit<React.ComponentProps<typeof FormControl>, 'onChange'>) => {
@@ -26,15 +32,24 @@ const QuickBuyToggle = ({
       <FormLabel htmlFor="quick-buy" fontSize="sm">
         Enable Quick Buy
       </FormLabel>
-      <Switch
-        id="quick-buy"
-        isDisabled={isDisabled}
-        isChecked={isChecked}
-        ref={switchRef}
-        onChange={() => {
-          onChange(!isChecked)
-        }}
-      />
+      <HStack spacing="3" alignItems="center">
+        <Switch
+          id="quick-buy"
+          isDisabled={isDisabled || !user.isFounder}
+          isChecked={isChecked}
+          ref={switchRef}
+          onChange={() => {
+            if (user.isFounder) {
+              onChange(!isChecked)
+            }
+          }}
+        />
+        {!user.isFounder && (
+          <Box top="1px" position="relative">
+            <LockedFeature level="founder" />
+          </Box>
+        )}
+      </HStack>
       <Alert
         fontSize="sm"
         status="warning"

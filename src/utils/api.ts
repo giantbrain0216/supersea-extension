@@ -2,6 +2,7 @@ import DataLoader from 'dataloader'
 import { request, gql, GraphQLClient } from 'graphql-request'
 import { fetchMetadataUri } from '../utils/web3'
 import { RateLimit, Sema } from 'async-sema'
+import { User } from './user'
 
 const OPENSEA_SHARED_CONTRACT_ADDRESSES = [
   '0x495f947276749ce646f68ac8c248420045cb7b5e',
@@ -91,7 +92,7 @@ const tokenClient = new GraphQLClient('https://api.nonfungible.tools/graphql', {
 
 const userSema = new Sema(1)
 let cachedUser:
-  | { accessToken: string; role: string }
+  | { accessToken: string; role: User['role'] }
   | null
   | undefined = undefined
 export const getUser = async (refresh = false) => {

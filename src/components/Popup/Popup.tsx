@@ -21,11 +21,13 @@ import { ReactComponent as EtherscanSvg } from '../../assets/etherscan.svg'
 import { ReactComponent as LogoSvg } from '../../assets/logo.svg'
 import QuickBuyToggle from './QuickBuyToggle'
 import GlobalToggle from './GlobalToggle'
-import useExtensionConfig from '../../hooks/useExtensionConfig'
+import { useExtensionConfig } from '../../utils/extensionConfig'
+import { useUser } from '../../utils/user'
 
 const Popup = () => {
   const [isChanged, setIsChanged] = useState(false)
   const [extensionConfig, setExtensionConfig] = useExtensionConfig()
+  const user = useUser()
   const quickBuyToggleRef = useRef<HTMLInputElement | null>(null)
   const toast = useToast()
   useEffect(() => {
@@ -110,7 +112,7 @@ const Popup = () => {
               Settings
             </Heading>
           </Box>
-          {extensionConfig
+          {extensionConfig && user
             ? [
                 <GlobalToggle
                   key="globalToggle"
@@ -125,6 +127,7 @@ const Popup = () => {
                 />,
                 <QuickBuyToggle
                   key="quickBuyToggle"
+                  user={user}
                   isDisabled={!extensionConfig.enabled}
                   isChecked={extensionConfig.quickBuyEnabled}
                   switchRef={quickBuyToggleRef}

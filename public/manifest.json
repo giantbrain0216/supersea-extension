@@ -19,7 +19,10 @@
   "background": {
     "service_worker": "static/js/background.js"
   },
-  "host_permissions": ["https://*.opensea.io/*"],
+  "host_permissions": [
+    "https://*.opensea.io/*",
+    "https://*.nonfungible.tools/*"
+  ],
   "icons": {
     "128": "icon.png"
   },

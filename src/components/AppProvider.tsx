@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import { IdProvider, ColorModeProvider } from '@chakra-ui/react'
 import { toCSSVar } from '@chakra-ui/styled-system'
 import {
@@ -7,8 +7,7 @@ import {
 } from '@emotion/react'
 import theme from '../theme'
 import { SCOPED_CLASS_NAME } from './ScopedCSSReset'
-import { MEMBER_ROLES, User, UserProvider } from '../utils/user'
-import { getUser } from '../utils/api'
+import { UserProvider } from '../utils/user'
 import EventEmitter from 'events'
 
 const ThemeProvider = (props: EmotionThemeProviderProps) => {
@@ -45,18 +44,8 @@ export const GlobalConfigContext = React.createContext({
 })
 
 const AppProvider = ({ children }: React.PropsWithChildren<{}>) => {
-  const [user, setUser] = useState<User | null>(null)
-  useEffect(() => {
-    ;(async () => {
-      const user = await getUser()
-      setUser({
-        isMember: Boolean(user?.role && MEMBER_ROLES.includes(user.role)),
-      })
-    })()
-  }, [])
-  if (!user) return null
   return (
-    <UserProvider value={user}>
+    <UserProvider>
       <LeanChakraProvider>{children}</LeanChakraProvider>
     </UserProvider>
   )

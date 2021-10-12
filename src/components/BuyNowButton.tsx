@@ -8,7 +8,8 @@ import {
 } from '@chakra-ui/react'
 import { FaShoppingCart } from 'react-icons/fa'
 import Toast from './Toast'
-import useExtensionConfig from '../hooks/useExtensionConfig'
+import { useExtensionConfig } from '../utils/extensionConfig'
+import { useUser } from '../utils/user'
 
 export const BuyNowButtonUI = ({
   address,
@@ -120,7 +121,8 @@ const BuyNowButton = (
   props: Omit<React.ComponentProps<typeof BuyNowButtonUI>, 'active'>,
 ) => {
   const [config] = useExtensionConfig()
-  if (config === null) return null
+  const user = useUser()
+  if (config === null || user === null || !user.isFounder) return null
   return <BuyNowButtonUI {...props} active={config.quickBuyEnabled} />
 }
 

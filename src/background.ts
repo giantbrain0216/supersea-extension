@@ -1,4 +1,5 @@
 /* global chrome */
+import { gql } from 'graphql-request'
 import _ from 'lodash'
 import queryString from 'query-string'
 
@@ -38,7 +39,19 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
   ['requestHeaders'],
 )
 
-chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
+const refreshTokenMutation = gql`
+  mutation RefreshToken {
+    refreshToken {
+      success
+      accessToken
+      account {
+        role
+      }
+    }
+  }
+`
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.method === 'fetch') {
     fetch(request.params.url)
       .then((res) => res.json())
@@ -48,22 +61,48 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
   } else if (request.method === 'ping') {
     sendResponse('pong')
   } else if (request.method === 'openPopup') {
-    let left = 0
-    let top = 0
-    try {
-      const window = await chrome.windows.getLastFocused()
-      top = window.top || 0
-      left = (window.left || 0) + (window.width || 400) - 400
-    } catch (err) {}
-
-    chrome.windows.create({
-      url: `index.html?${queryString.stringify(request.params)}`,
-      type: 'panel',
-      width: 400,
-      height: 550,
-      left,
-      top,
+    const createWindow = (params = {}) => {
+      chrome.windows.create({
+        url: `index.html?${queryString.stringify(request.params)}`,
+        type: 'panel',
+        width: 400,
+        height: 550,
+        ...params,
+      })
+    }
+    chrome.windows
+      .getLastFocused()
+      .then((window) => {
+        const top = window.top || 0
+        const left = (window.left || 0) + (window.width || 400) - 400
+        createWindow({ left, top })
+      })
+      .catch(() => {
+        createWindow()
+      })
+  } else if (request.method === 'getUser') {
+    // Can't use graphl-request because it depends on XMLHttpRequest,
+    // which isn't available in backgtround scripts
+    fetch('https://api.nonfungible.tools/graphql', {
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ query: refreshTokenMutation }),
+      method: 'POST',
+      mode: 'cors',
+      credentials: 'include',
     })
+      .then((res) => res.json())
+      .then((json) => {
+        const {
+          refreshToken: {
+            accessToken,
+            account: { role },
+          },
+        } = json.data
+
+        sendResponse({ accessToken, role })
+      })
   }
   return true
 })
