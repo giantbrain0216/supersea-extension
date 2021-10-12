@@ -43,6 +43,7 @@ import ScopedCSSPortal from './ScopedCSSPortal'
 import RefreshIndicator, { RefreshState } from './RefreshIndicator'
 import { EventEmitterContext, GlobalConfigContext } from './AppProvider'
 import { RateLimit } from 'async-sema'
+import BuyNowButton from './BuyNowButton'
 
 export const HEIGHT = 85
 export const LIST_HEIGHT = 62
@@ -271,13 +272,15 @@ const AssetInfo = ({
           )
           if (token) {
             const { rank } = token
-            setRarity({
-              isRanked: true,
-              tokenCount,
-              rank,
-              type: RARITY_TYPES.find(({ top }) => rank / tokenCount <= top)!,
-            })
-            return
+            if (rank !== null) {
+              setRarity({
+                isRanked: true,
+                tokenCount,
+                rank,
+                type: RARITY_TYPES.find(({ top }) => rank / tokenCount <= top)!,
+              })
+              return
+            }
           }
         }
         setRarity(null)
@@ -314,6 +317,11 @@ const AssetInfo = ({
       border={type === 'list' ? '1px solid' : undefined}
       borderTop="1px solid"
       borderColor={useColorModeValue('gray.200', 'transparent')}
+      _hover={{
+        '.SuperSea__BuyNowContainer': {
+          opacity: 1,
+        },
+      }}
       bg={useColorModeValue(
         rarity && isMember ? rarity.type.color.light : 'gray.50',
         rarity && isMember ? rarity.type.color.dark : 'gray.600',
@@ -339,7 +347,7 @@ const AssetInfo = ({
       >
         <Logo
           position="absolute"
-          opacity={useColorModeValue(rarity ? 0.75 : 0.35, rarity ? 0.15 : 0.1)}
+          opacity={useColorModeValue(rarity ? 0.4 : 0.35, rarity ? 0.15 : 0.1)}
           width={type === 'list' ? '70px' : '120px'}
           height={type === 'list' ? '70px' : '120px'}
           top="50%"
@@ -567,6 +575,17 @@ const AssetInfo = ({
         <Box position="absolute" bottom="2" right="2">
           <RefreshIndicator state={refreshState} />
         </Box>
+      </Box>
+      <Box
+        position="absolute"
+        top="0"
+        right="0"
+        m="1"
+        className="SuperSea__BuyNowContainer"
+        opacity="0"
+        transition="opacity 115ms ease"
+      >
+        <BuyNowButton address={address} tokenId={tokenId} />
       </Box>
     </Flex>
   )

@@ -5,6 +5,7 @@ import React from 'react'
 
 const EthereumIcon = (props: React.ComponentProps<typeof Icon>) => {
   return (
+    // @ts-ignore
     <Icon
       as={useColorModeValue(EthereumLightSVG, EthereumDarkSVG) as any}
       width="0.5em"

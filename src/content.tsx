@@ -239,10 +239,20 @@ const throttledDestroyRemovedInjections = _.throttle(
   1000,
 )
 
+const injectInPageContextScript = () => {
+  const s = document.createElement('script')
+  s.src = chrome.runtime.getURL('static/js/pageContextInject.js')
+  document.head.appendChild(s)
+  s.onload = function () {
+    s.remove()
+  }
+}
+
 const setupInjections = async () => {
   injectBundleVerification()
   injectAssetInfo()
   injectProfileSummary()
+  injectInPageContextScript()
 
   const observer = new MutationObserver(() => {
     throttledInjectBundleVerification()

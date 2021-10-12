@@ -4,6 +4,7 @@ import LogoSvg from '../assets/logo.svg'
 
 const Logo = (props: React.ComponentProps<typeof Icon>) => {
   return (
+    // @ts-ignore
     <Icon
       as={LogoSvg as any}
       color={useColorModeValue('gray.400', 'white')}
