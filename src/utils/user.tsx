@@ -45,7 +45,6 @@ export const UserProvider = ({
         }
         return getUser()
       })()
-      console.log('USER', user)
       const role = user?.role || 'FREE'
 
       setUser({

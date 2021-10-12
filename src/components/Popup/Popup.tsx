@@ -29,15 +29,19 @@ const Popup = () => {
   const [extensionConfig, setExtensionConfig] = useExtensionConfig()
   const user = useUser()
   const quickBuyToggleRef = useRef<HTMLInputElement | null>(null)
+  const actionPerformedRef = useRef(false)
   const toast = useToast()
   useEffect(() => {
-    if (!extensionConfig) return
+    if (!extensionConfig || actionPerformedRef.current) return
     const query = queryString.parse(window.location.search)
     if (query.action === 'activateQuickBuy') {
-      quickBuyToggleRef.current?.focus()
-      quickBuyToggleRef.current?.scrollIntoView({
-        behavior: 'smooth',
-      })
+      actionPerformedRef.current = true
+      setTimeout(() => {
+        quickBuyToggleRef.current?.focus()
+        quickBuyToggleRef.current?.scrollIntoView({
+          behavior: 'smooth',
+        })
+      }, 250)
     }
   }, [extensionConfig])
 
