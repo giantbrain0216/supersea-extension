@@ -47,18 +47,25 @@ const injectAssetInfo = () => {
   const gridNodes = Array.from(
     document.querySelectorAll('article.AssetSearchList--asset'),
   )
-  const listNodes = Array.from(document.querySelectorAll('.EventHistory--row'))
+  const listNodesV1 = Array.from(
+    document.querySelectorAll('.EventHistory--row'),
+  )
+  const listNodesV2 = Array.from(
+    document.querySelectorAll('div[role="listitem"] .AssetCell--container'),
+  )
   const itemNode = document.querySelector('.item--summary > article')
   const nodes = [
     ...gridNodes.map((node) => ({ node, type: 'grid' })),
-    ...listNodes.map((node) => ({ node, type: 'list' })),
+    ...listNodesV1.map((node) => ({ node, type: 'list', version: 1 })),
+    ...listNodesV2.map((node) => ({ node, type: 'list', version: 2 })),
     ...(itemNode ? [{ node: itemNode, type: 'item' }] : []),
   ] as {
     node: HTMLElement
+    version?: number
     type: React.ComponentProps<typeof AssetInfo>['type']
   }[]
 
-  nodes.forEach(({ node, type }) => {
+  nodes.forEach(({ node, type, version }) => {
     if (node.dataset[NODE_ASSET_PROCESSED_DATA_KEY]) return
     node.dataset[NODE_ASSET_PROCESSED_DATA_KEY] = '1'
 
@@ -77,6 +84,8 @@ const injectAssetInfo = () => {
         if (!link) {
           link = node.querySelector('.Asset--anchor')
         }
+      } else if (type === 'list' && version === 2) {
+        link = node.closest('a')
       } else {
         link = node.querySelector('.AssetCell--link')
       }
@@ -94,10 +103,11 @@ const injectAssetInfo = () => {
       }
       return {}
     })()
-
     if (!(address && tokenId && chain)) return
 
     const container = document.createElement('div')
+    container.classList.add('SuperSea__AssetInfo')
+    container.classList.add('SuperSea__AssetInfo--Unrendered')
     if (type === 'grid') {
       // Disable hover transforms, since it causes issues with popover and makes
       // things more annoying to click
@@ -111,7 +121,7 @@ const injectAssetInfo = () => {
         imageContainer.style.borderRadius = '0'
       }
       node.appendChild(container)
-    } else if (type === 'list') {
+    } else if (type === 'list' && version === 1) {
       const itemColHeader = node.parentElement!.querySelector(
         '.EventHistory--item-col',
       )! as HTMLElement
@@ -130,20 +140,13 @@ const injectAssetInfo = () => {
         container,
         node.querySelector('.EventHistory--item-col'),
       )
+    } else if (type === 'list' && version === 2) {
+      node.prepend(container)
     }
-
-    window.requestIdleCallback(() => {
-      injectReact(
-        <AssetInfo
-          address={address}
-          tokenId={tokenId}
-          chain={chain}
-          type={type}
-          container={node}
-        />,
-        container,
-      )
-    })
+    container.dataset['address'] = address
+    container.dataset['tokenId'] = tokenId
+    container.dataset['chain'] = chain
+    container.dataset['type'] = type
   })
 }
 
@@ -151,9 +154,10 @@ let injectedReactContainers: ReactDOM.Container[] = []
 const injectReact = (
   content: React.ReactElement,
   target: ReactDOM.Container,
+  callback?: () => void,
 ) => {
   injectedReactContainers.push(target)
-  ReactDOM.render(<AppProvider>{content}</AppProvider>, target)
+  ReactDOM.render(<AppProvider>{content}</AppProvider>, target, callback)
 }
 
 const destroyRemovedInjections = () => {
@@ -229,7 +233,7 @@ const injectProfileSummary = () => {
   )
 }
 
-const throttledInjectAssetInfo = _.throttle(injectAssetInfo, 50)
+const throttledInjectAssetInfo = _.throttle(injectAssetInfo, 250)
 const throttledInjectBundleVerification = _.throttle(
   injectBundleVerification,
   250,
@@ -268,6 +272,39 @@ const setupInjections = async () => {
   })
 }
 
+const setupAssetInfoRenderer = () => {
+  const render = () => {
+    try {
+      const selectedNodes = document.querySelectorAll(
+        '.SuperSea__AssetInfo--Unrendered',
+      )
+      if (selectedNodes.length !== 0) {
+        const nodes = [...Array.from(selectedNodes)] as HTMLElement[]
+        nodes.forEach((node: HTMLElement) => {
+          const { address, tokenId, chain, type } = node.dataset as any
+          injectReact(
+            <AssetInfo
+              address={address}
+              tokenId={tokenId}
+              chain={chain}
+              type={type}
+              container={node.parentElement!}
+            />,
+            node,
+          )
+          node.classList.remove('SuperSea__AssetInfo--Unrendered')
+        })
+      }
+    } catch (err) {
+      console.error('AssetInfo inject error', err)
+    }
+    setTimeout(() => {
+      window.requestIdleCallback(render)
+    }, 250)
+  }
+  window.requestIdleCallback(render)
+}
+
 // We need to keep the background script alive for webRequest handlers
 const setupKeepAlivePing = () => {
   setInterval(() => {
@@ -283,6 +320,7 @@ const initialize = async () => {
     setupInjections()
     setupKeepAlivePing()
     addGlobalStyle()
+    setupAssetInfoRenderer()
   }
   if (config.quickBuyEnabled) {
     injectInPageContextScript()

@@ -286,308 +286,325 @@ const AssetInfo = ({
   }, [address, tokenId])
 
   return (
-    <Flex
-      height={type === 'list' ? `${LIST_HEIGHT}px` : `${HEIGHT}px`}
-      minWidth={type === 'list' ? '140px' : 0}
-      transition="background 250ms ease"
-      position={type === 'grid' ? 'absolute' : 'relative'}
-      bottom={type === 'grid' ? 0 : undefined}
-      width="100%"
-      pt={type === 'list' ? 6 : 4}
-      pb={type === 'list' ? 1 : 3}
-      px="3"
-      mx={type === 'list' ? 3 : 0}
-      alignItems="flex-end"
-      borderBottomRadius="5px"
-      borderTopRadius={type === 'list' ? '5px' : 0}
-      fontSize={type === 'list' ? '12px' : '14px'}
-      color={useColorModeValue('gray.700', 'white')}
-      border={type === 'list' ? '1px solid' : undefined}
-      borderTop="1px solid"
-      borderColor={useColorModeValue('gray.200', 'transparent')}
-      _hover={{
-        '.SuperSea__BuyNowContainer': {
-          opacity: 1,
-        },
-      }}
-      bg={useColorModeValue(
-        rarity && isSubscriber ? rarity.type.color.light : 'gray.50',
-        rarity && isSubscriber ? rarity.type.color.dark : 'gray.600',
-      )}
-      onClick={(e) => {
-        if ((e.target as HTMLElement).tagName !== 'A') {
-          e.preventDefault()
-        }
-        e.stopPropagation()
-      }}
+    <Box
+      pr={type === 'list' ? 3 : 0}
+      width={type === 'list' ? '165px' : undefined}
     >
-      <Box
-        position="absolute"
-        pointerEvents="none"
+      <Flex
+        height={type === 'list' ? `${LIST_HEIGHT}px` : `${HEIGHT}px`}
+        minWidth={type === 'list' ? '140px' : 0}
+        transition="background 250ms ease"
+        position={type === 'grid' ? 'absolute' : 'relative'}
+        bottom={type === 'grid' ? 0 : undefined}
         width="100%"
-        top="0"
-        right="0"
-        height="100%"
-        borderBottomRightRadius="5px"
-        borderTopRightRadius={type === 'list' ? '5px' : 0}
-        overflow="hidden"
-        zIndex={0}
+        pt={type === 'list' ? 6 : 4}
+        pb={type === 'list' ? 1 : 3}
+        px="3"
+        alignItems="flex-end"
+        borderBottomRadius="5px"
+        borderTopRadius={type === 'list' ? '5px' : 0}
+        fontSize={type === 'list' ? '12px' : '14px'}
+        color={useColorModeValue('gray.700', 'white')}
+        border={type === 'list' ? '1px solid' : undefined}
+        borderTop="1px solid"
+        borderColor={useColorModeValue('gray.200', 'transparent')}
+        _hover={{
+          '.SuperSea__BuyNowContainer': {
+            opacity: 1,
+          },
+        }}
+        bg={useColorModeValue(
+          rarity && isSubscriber ? rarity.type.color.light : 'gray.50',
+          rarity && isSubscriber ? rarity.type.color.dark : 'gray.600',
+        )}
+        onClick={(e) => {
+          if ((e.target as HTMLElement).tagName !== 'A') {
+            e.preventDefault()
+          }
+          e.stopPropagation()
+        }}
       >
-        <Logo
+        <Box
           position="absolute"
-          opacity={useColorModeValue(rarity ? 0.4 : 0.35, rarity ? 0.15 : 0.1)}
-          width={type === 'list' ? '70px' : '120px'}
-          height={type === 'list' ? '70px' : '120px'}
-          top="50%"
-          right="-16px"
-          transform="translateY(-50%)"
-          color={useColorModeValue(
-            rarity && isSubscriber ? 'white' : 'gray.300',
-            'white',
-          )}
-        />
-        <Box position="absolute" bottom="2" right="2">
-          <RefreshIndicator state={refreshState} />
+          pointerEvents="none"
+          width="100%"
+          top="0"
+          right="0"
+          height="100%"
+          borderBottomRightRadius="5px"
+          borderTopRightRadius={type === 'list' ? '5px' : 0}
+          overflow="hidden"
+          zIndex={0}
+        >
+          <Logo
+            position="absolute"
+            opacity={useColorModeValue(
+              rarity ? 0.4 : 0.35,
+              rarity ? 0.15 : 0.1,
+            )}
+            width={type === 'list' ? '70px' : '120px'}
+            height={type === 'list' ? '70px' : '120px'}
+            top="50%"
+            right="-16px"
+            transform="translateY(-50%)"
+            color={useColorModeValue(
+              rarity && isSubscriber ? 'white' : 'gray.300',
+              'white',
+            )}
+          />
+          <Box position="absolute" bottom="2" right="2">
+            <RefreshIndicator state={refreshState} />
+          </Box>
         </Box>
-      </Box>
-      <Menu autoSelect={false}>
-        <MenuButton
-          as={IconButton}
-          icon={<Icon as={FiMoreHorizontal} />}
-          size="md"
+        <Menu autoSelect={false}>
+          <MenuButton
+            as={IconButton}
+            icon={<Icon as={FiMoreHorizontal} />}
+            size="md"
+            position="absolute"
+            top="0"
+            bg="transparent"
+            height="20px"
+            mt="1"
+            minWidth="24px"
+            ml="5px"
+            left="0"
+          >
+            More Options
+          </MenuButton>
+          <ScopedCSSPortal>
+            <MenuList
+              borderColor={useColorModeValue('gray.200', 'gray.800')}
+              zIndex={2}
+              color={useColorModeValue('black', 'white')}
+              fontSize="sm"
+            >
+              <MenuGroup
+                // @ts-ignore
+                title={
+                  <Text>
+                    Metadata{' '}
+                    {chain === 'polygon' ? (
+                      <Tag fontSize="xs" mt="-1px" ml="0.35em">
+                        Unavailable
+                      </Tag>
+                    ) : null}
+                  </Text>
+                }
+                mr="0"
+              >
+                <MenuItem
+                  isDisabled={chain === 'polygon'}
+                  onClick={queueRefresh}
+                >
+                  Queue OpenSea refresh
+                </MenuItem>
+                <MenuItem
+                  isDisabled={chain === 'polygon'}
+                  onClick={replaceImage}
+                >
+                  Replace image from source
+                </MenuItem>
+                <MenuItem
+                  isDisabled={chain === 'polygon' || !isSubscriber}
+                  onClick={async () => {
+                    if (!isSubscriber) return
+                    globalConfig.autoQueueAddresses[address] = !globalConfig
+                      .autoQueueAddresses[address]
+
+                    if (!globalConfig.autoQueueAddresses[address]) {
+                      Object.keys(globalConfig.refreshQueued).forEach((key) => {
+                        const [_address] = key.split('/')
+                        if (address === _address) {
+                          globalConfig.refreshQueued[key] = false
+                        }
+                      })
+                    }
+
+                    events.emit('toggleAutoQueue', {
+                      value: globalConfig.autoQueueAddresses[address],
+                      address,
+                    })
+                  }}
+                >
+                  <Text maxWidth="210px">
+                    Mass-queue OpenSea refresh for collection
+                    {!isSubscriber && (
+                      <Box ml="1" display="inline-block">
+                        <LockedFeature />
+                      </Box>
+                    )}
+                    {isAutoQueued && (
+                      <CheckIcon
+                        width="12px"
+                        height="auto"
+                        display="inline-block"
+                        marginLeft="3px"
+                      />
+                    )}
+                  </Text>
+                </MenuItem>
+                <MenuItem
+                  isDisabled={chain === 'polygon' || !isSubscriber}
+                  onClick={async () => {
+                    if (!isSubscriber) return
+                    globalConfig.autoImageReplaceAddresses[
+                      address
+                    ] = !globalConfig.autoImageReplaceAddresses[address]
+
+                    if (!globalConfig.autoImageReplaceAddresses[address]) {
+                      Object.keys(globalConfig.imageReplaced).forEach((key) => {
+                        const [_address] = key.split('/')
+                        if (address === _address) {
+                          globalConfig.imageReplaced[key] = false
+                        }
+                      })
+                    }
+
+                    events.emit('toggleAutoReplaceImage', {
+                      value: globalConfig.autoImageReplaceAddresses[address],
+                      address,
+                    })
+                  }}
+                >
+                  <Text maxWidth="210px">
+                    Mass-replace image from source for collection
+                    {!isSubscriber && (
+                      <Box ml="1" display="inline-block">
+                        <LockedFeature />
+                      </Box>
+                    )}
+                    {isAutoImageReplaced && (
+                      <CheckIcon
+                        width="12px"
+                        height="auto"
+                        display="inline-block"
+                        marginLeft="3px"
+                      />
+                    )}
+                  </Text>
+                </MenuItem>
+                <MenuItem
+                  isDisabled={chain === 'polygon'}
+                  onClick={async () => {
+                    let metadataUri = await fetchMetadataUriWithOpenSeaFallback(
+                      address,
+                      +tokenId,
+                    )
+                    if (!metadataUri) {
+                      toast({
+                        duration: 3000,
+                        position: 'bottom-right',
+                        render: () => (
+                          <Toast text="Unable to load metadata." type="error" />
+                        ),
+                      })
+                      return
+                    }
+                    if (/^data:/.test(metadataUri)) {
+                      const blob = await fetch(metadataUri).then((res) =>
+                        res.blob(),
+                      )
+                      window.open(URL.createObjectURL(blob), '_blank')
+                    } else {
+                      window.open(metadataUri, '_blank')
+                    }
+                  }}
+                >
+                  View Raw Data{' '}
+                  <Icon as={FiExternalLink} ml="0.3em" mt="-2px" />
+                </MenuItem>
+              </MenuGroup>
+              <MenuDivider />
+              <MenuGroup
+                title={chain === 'ethereum' ? 'Etherscan' : 'Polygonscan'}
+              >
+                <MenuItem
+                  onClick={() => {
+                    window.open(
+                      `https://${
+                        chain === 'ethereum'
+                          ? 'etherscan.io'
+                          : 'polygonscan.com'
+                      }/token/${address}`,
+                      '_blank',
+                    )
+                  }}
+                >
+                  View contract{' '}
+                  <Icon as={FiExternalLink} ml="0.3em" mt="-2px" />
+                </MenuItem>
+              </MenuGroup>
+            </MenuList>
+          </ScopedCSSPortal>
+        </Menu>
+        <VStack
+          spacing={type === 'list' ? 0 : 1}
+          alignItems="flex-start"
+          width="100%"
+          zIndex={0}
+        >
+          <Flex width="100%" alignItems="center">
+            <Text opacity={0.7} mr="0.5em">
+              Rank:
+            </Text>
+            {rarity !== undefined ? (
+              <RarityBadge isSubscriber={isSubscriber} rarity={rarity} />
+            ) : (
+              <Spinner ml={1} width={3} height={3} opacity={0.75} />
+            )}
+          </Flex>
+          <Flex width="100%" alignItems="center">
+            <Text opacity={0.7} mr="0.5em">
+              Floor:{' '}
+            </Text>
+            {floor ? (
+              <>
+                {floor?.currency === 'ETH' ? <EthereumIcon /> : null}
+                <Link
+                  href={floor.floorSearchUrl}
+                  fontWeight="500"
+                  verticalAlign="middle"
+                >
+                  {floor === null
+                    ? 'Unavailable'
+                    : `${floor.price} ${
+                        floor.currency !== 'ETH' ? ` ${floor.currency}` : ''
+                      }`}
+                </Link>
+              </>
+            ) : (
+              <Spinner ml={1} width={3} height={3} opacity={0.75} />
+            )}
+          </Flex>
+        </VStack>
+        <Box
+          position="absolute"
+          pointerEvents="none"
+          width="100%"
+          top="0"
+          right="0"
+          height="100%"
+          overflow="hidden"
+          zIndex={0}
+        >
+          <Box position="absolute" bottom="2" right="2">
+            <RefreshIndicator state={refreshState} />
+          </Box>
+        </Box>
+        <Box
           position="absolute"
           top="0"
-          bg="transparent"
-          height="20px"
-          mt="1"
-          minWidth="24px"
-          ml="5px"
-          left="0"
+          right="0"
+          m="1"
+          className="SuperSea__BuyNowContainer"
+          opacity="0"
+          transition="opacity 115ms ease"
         >
-          More Options
-        </MenuButton>
-        <ScopedCSSPortal>
-          <MenuList
-            borderColor={useColorModeValue('gray.200', 'gray.800')}
-            zIndex={2}
-            color={useColorModeValue('black', 'white')}
-            fontSize="sm"
-          >
-            <MenuGroup
-              // @ts-ignore
-              title={
-                <Text>
-                  Metadata{' '}
-                  {chain === 'polygon' ? (
-                    <Tag fontSize="xs" mt="-1px" ml="0.35em">
-                      Unavailable
-                    </Tag>
-                  ) : null}
-                </Text>
-              }
-              mr="0"
-            >
-              <MenuItem isDisabled={chain === 'polygon'} onClick={queueRefresh}>
-                Queue OpenSea refresh
-              </MenuItem>
-              <MenuItem isDisabled={chain === 'polygon'} onClick={replaceImage}>
-                Replace image from source
-              </MenuItem>
-              <MenuItem
-                isDisabled={chain === 'polygon' || !isSubscriber}
-                onClick={async () => {
-                  if (!isSubscriber) return
-                  globalConfig.autoQueueAddresses[address] = !globalConfig
-                    .autoQueueAddresses[address]
-
-                  if (!globalConfig.autoQueueAddresses[address]) {
-                    Object.keys(globalConfig.refreshQueued).forEach((key) => {
-                      const [_address] = key.split('/')
-                      if (address === _address) {
-                        globalConfig.refreshQueued[key] = false
-                      }
-                    })
-                  }
-
-                  events.emit('toggleAutoQueue', {
-                    value: globalConfig.autoQueueAddresses[address],
-                    address,
-                  })
-                }}
-              >
-                <Text maxWidth="210px">
-                  Mass-queue OpenSea refresh for collection
-                  {!isSubscriber && (
-                    <Box ml="1" display="inline-block">
-                      <LockedFeature />
-                    </Box>
-                  )}
-                  {isAutoQueued && (
-                    <CheckIcon
-                      width="12px"
-                      height="auto"
-                      display="inline-block"
-                      marginLeft="3px"
-                    />
-                  )}
-                </Text>
-              </MenuItem>
-              <MenuItem
-                isDisabled={chain === 'polygon' || !isSubscriber}
-                onClick={async () => {
-                  if (!isSubscriber) return
-                  globalConfig.autoImageReplaceAddresses[
-                    address
-                  ] = !globalConfig.autoImageReplaceAddresses[address]
-
-                  if (!globalConfig.autoImageReplaceAddresses[address]) {
-                    Object.keys(globalConfig.imageReplaced).forEach((key) => {
-                      const [_address] = key.split('/')
-                      if (address === _address) {
-                        globalConfig.imageReplaced[key] = false
-                      }
-                    })
-                  }
-
-                  events.emit('toggleAutoReplaceImage', {
-                    value: globalConfig.autoImageReplaceAddresses[address],
-                    address,
-                  })
-                }}
-              >
-                <Text maxWidth="210px">
-                  Mass-replace image from source for collection
-                  {!isSubscriber && (
-                    <Box ml="1" display="inline-block">
-                      <LockedFeature />
-                    </Box>
-                  )}
-                  {isAutoImageReplaced && (
-                    <CheckIcon
-                      width="12px"
-                      height="auto"
-                      display="inline-block"
-                      marginLeft="3px"
-                    />
-                  )}
-                </Text>
-              </MenuItem>
-              <MenuItem
-                isDisabled={chain === 'polygon'}
-                onClick={async () => {
-                  let metadataUri = await fetchMetadataUriWithOpenSeaFallback(
-                    address,
-                    +tokenId,
-                  )
-                  if (!metadataUri) {
-                    toast({
-                      duration: 3000,
-                      position: 'bottom-right',
-                      render: () => (
-                        <Toast text="Unable to load metadata." type="error" />
-                      ),
-                    })
-                    return
-                  }
-                  if (/^data:/.test(metadataUri)) {
-                    const blob = await fetch(metadataUri).then((res) =>
-                      res.blob(),
-                    )
-                    window.open(URL.createObjectURL(blob), '_blank')
-                  } else {
-                    window.open(metadataUri, '_blank')
-                  }
-                }}
-              >
-                View Raw Data <Icon as={FiExternalLink} ml="0.3em" mt="-2px" />
-              </MenuItem>
-            </MenuGroup>
-            <MenuDivider />
-            <MenuGroup
-              title={chain === 'ethereum' ? 'Etherscan' : 'Polygonscan'}
-            >
-              <MenuItem
-                onClick={() => {
-                  window.open(
-                    `https://${
-                      chain === 'ethereum' ? 'etherscan.io' : 'polygonscan.com'
-                    }/token/${address}`,
-                    '_blank',
-                  )
-                }}
-              >
-                View contract <Icon as={FiExternalLink} ml="0.3em" mt="-2px" />
-              </MenuItem>
-            </MenuGroup>
-          </MenuList>
-        </ScopedCSSPortal>
-      </Menu>
-      <VStack
-        spacing={type === 'list' ? 0 : 1}
-        alignItems="flex-start"
-        width="100%"
-        zIndex={0}
-      >
-        <Flex width="100%" alignItems="center">
-          <Text opacity={0.7} mr="0.5em">
-            Rank:
-          </Text>
-          {rarity !== undefined ? (
-            <RarityBadge isSubscriber={isSubscriber} rarity={rarity} />
-          ) : (
-            <Spinner ml={1} width={3} height={3} opacity={0.75} />
-          )}
-        </Flex>
-        <Flex width="100%" alignItems="center">
-          <Text opacity={0.7} mr="0.5em">
-            Floor:{' '}
-          </Text>
-          {floor ? (
-            <>
-              {floor?.currency === 'ETH' ? <EthereumIcon /> : null}
-              <Link
-                href={floor.floorSearchUrl}
-                fontWeight="500"
-                verticalAlign="middle"
-              >
-                {floor === null
-                  ? 'Unavailable'
-                  : `${floor.price} ${
-                      floor.currency !== 'ETH' ? ` ${floor.currency}` : ''
-                    }`}
-              </Link>
-            </>
-          ) : (
-            <Spinner ml={1} width={3} height={3} opacity={0.75} />
-          )}
-        </Flex>
-      </VStack>
-      <Box
-        position="absolute"
-        pointerEvents="none"
-        width="100%"
-        top="0"
-        right="0"
-        height="100%"
-        overflow="hidden"
-        zIndex={0}
-      >
-        <Box position="absolute" bottom="2" right="2">
-          <RefreshIndicator state={refreshState} />
+          <BuyNowButton address={address} tokenId={tokenId} />
         </Box>
-      </Box>
-      <Box
-        position="absolute"
-        top="0"
-        right="0"
-        m="1"
-        className="SuperSea__BuyNowContainer"
-        opacity="0"
-        transition="opacity 115ms ease"
-      >
-        <BuyNowButton address={address} tokenId={tokenId} />
-      </Box>
-    </Flex>
+      </Flex>
+    </Box>
   )
 }
 
