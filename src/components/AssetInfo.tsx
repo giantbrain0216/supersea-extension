@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useContext, useCallback } from 'react'
+import { CheckIcon } from '@chakra-ui/icons'
 import {
   Box,
   Flex,
@@ -14,9 +15,7 @@ import {
   MenuItem,
   MenuList,
   IconButton,
-  Portal,
   useToast,
-  DarkMode,
   Tag,
   HStack,
   useColorModeValue,
@@ -40,10 +39,18 @@ import Toast from './Toast'
 import EthereumIcon from './EthereumIcon'
 import Logo from './Logo'
 import { useUser } from '../utils/user'
-import { SCOPED_CLASS_NAME } from './ScopedCSSReset'
+import ScopedCSSPortal from './ScopedCSSPortal'
+import RefreshIndicator, { RefreshState } from './RefreshIndicator'
+import { EventEmitterContext, GlobalConfigContext } from './AppProvider'
+import { RateLimit } from 'async-sema'
+import BuyNowButton from './BuyNowButton'
+import LockedFeature from './LockedFeature'
 
 export const HEIGHT = 85
 export const LIST_HEIGHT = 62
+
+const queueRefreshRateLimit = RateLimit(1)
+const replaceImageRateLimit = RateLimit(3)
 
 const RARITY_TYPES = [
   {
@@ -77,13 +84,12 @@ type Rarity = {
 }
 const RarityBadge = ({
   rarity,
-  isMember,
+  isSubscriber,
 }: {
   rarity: Rarity | null
-  isMember: boolean
+  isSubscriber: boolean
 }) => {
-  const memberTagBg = useColorModeValue('blue.200', 'blue.500')
-  if (isMember) {
+  if (isSubscriber) {
     return (
       <Tooltip
         isDisabled={!rarity}
@@ -111,19 +117,7 @@ const RarityBadge = ({
     )
   }
   if (rarity && rarity.isRanked) {
-    return (
-      <Link
-        href="https://nonfungible.tools/connect"
-        _hover={{ textDecoration: 'none' }}
-      >
-        <Tag bg={memberTagBg} size="sm">
-          <HStack spacing="1px">
-            <LockIcon height="9px" />
-            <Box mt="1px">Member</Box>
-          </HStack>
-        </Tag>
-      </Link>
-    )
+    return <LockedFeature />
   }
   return <Text fontWeight="500">Unranked</Text>
 }
@@ -141,12 +135,110 @@ const AssetInfo = ({
   chain: Chain
   container: HTMLElement
 }) => {
-  const { isMember } = useUser() || { isMember: false }
+  const events = useContext(EventEmitterContext)
+  const globalConfig = useContext(GlobalConfigContext)
+
+  const { isSubscriber } = useUser() || { isSubscriber: false }
 
   const [rarity, setRarity] = useState<Rarity | null | undefined>(undefined)
   const [floor, setFloor] = useState<Floor | null | undefined>(undefined)
+  const [refreshState, setRefreshState] = useState<RefreshState>('IDLE')
+  const [isAutoQueued, setIsAutoQueued] = useState(false)
+  const [isAutoImageReplaced, setIsAutoImageReplaced] = useState(false)
 
   const toast = useToast()
+
+  const replaceImage = useCallback(async () => {
+    await replaceImageRateLimit()
+    try {
+      const metadata = await fetchMetadata(address, +tokenId)
+      const imgElement = container.querySelector('.Image--image') as HTMLElement
+      if (imgElement) {
+        imgElement.style.opacity = '0'
+        setTimeout(() => {
+          imgElement.setAttribute('src', '')
+        }, 0)
+        setTimeout(() => {
+          imgElement.style.opacity = '1'
+          imgElement.setAttribute(
+            'src',
+            (metadata.image || metadata.image_url).replace(
+              /^ipfs:\/\//,
+              'https://ipfs.io/ipfs/',
+            ),
+          )
+        }, 100)
+      }
+    } catch (err) {
+      console.error(err)
+      toast({
+        duration: 3000,
+        position: 'bottom-right',
+        render: () => (
+          <Toast text="Unable to load source image." type="error" />
+        ),
+      })
+    }
+  }, [address, container, toast, tokenId])
+
+  const autoReplaceImage = useCallback(() => {
+    if (globalConfig.autoImageReplaceAddresses[address]) {
+      setIsAutoImageReplaced(true)
+      if (!globalConfig.imageReplaced[`${address}/${tokenId}`]) {
+        globalConfig.imageReplaced[`${address}/${tokenId}`] = true
+        replaceImage()
+      }
+    } else if (isAutoImageReplaced) {
+      setIsAutoImageReplaced(false)
+    }
+  }, [address, globalConfig, replaceImage, isAutoImageReplaced, tokenId])
+
+  useEffect(() => {
+    events.addListener('toggleAutoReplaceImage', autoReplaceImage)
+    return () => {
+      events.removeListener('toggleAutoReplaceImage', autoReplaceImage)
+    }
+  }, [autoReplaceImage, events])
+
+  useEffect(() => {
+    autoReplaceImage()
+  }, [autoReplaceImage])
+
+  const queueRefresh = useCallback(async () => {
+    if (refreshState === 'QUEUING') return
+    setRefreshState('QUEUING')
+    await queueRefreshRateLimit()
+    const assetInfo = await fetchAssetInfo(address, +tokenId)
+    if (!assetInfo) {
+      setRefreshState('FAILED')
+      return
+    }
+    await triggerOpenSeaMetadataRefresh(assetInfo?.relayId)
+    setRefreshState('QUEUED')
+  }, [address, refreshState, tokenId])
+
+  const autoQueueRefresh = useCallback(() => {
+    if (globalConfig.autoQueueAddresses[address]) {
+      setIsAutoQueued(true)
+      if (!globalConfig.refreshQueued[`${address}/${tokenId}`]) {
+        globalConfig.refreshQueued[`${address}/${tokenId}`] = true
+        queueRefresh()
+      }
+    } else if (isAutoQueued) {
+      setIsAutoQueued(false)
+    }
+  }, [address, globalConfig, isAutoQueued, queueRefresh, tokenId])
+
+  useEffect(() => {
+    events.addListener('toggleAutoQueue', autoQueueRefresh)
+    return () => {
+      events.removeListener('toggleAutoQueue', autoQueueRefresh)
+    }
+  }, [autoQueueRefresh, events])
+
+  useEffect(() => {
+    autoQueueRefresh()
+  }, [autoQueueRefresh])
 
   useEffect(() => {
     if (!(address && tokenId)) return
@@ -155,7 +247,7 @@ const AssetInfo = ({
       setFloor(floor)
     })()
     ;(async () => {
-      if (isMember) {
+      if (isSubscriber) {
         if (chain === 'polygon') {
           setRarity(null)
           return
@@ -168,16 +260,18 @@ const AssetInfo = ({
           )
           if (token) {
             const { rank } = token
-            setRarity({
-              isRanked: true,
-              tokenCount,
-              rank,
-              type: RARITY_TYPES.find(({ top }) => rank / tokenCount <= top)!,
-            })
-            return
+            if (rank !== null) {
+              setRarity({
+                isRanked: true,
+                tokenCount,
+                rank,
+                type: RARITY_TYPES.find(({ top }) => rank / tokenCount <= top)!,
+              })
+              return
+            }
           }
-          setRarity(null)
         }
+        setRarity(null)
       } else {
         const isRanked = await fetchIsRanked(address)
         setRarity({
@@ -192,82 +286,98 @@ const AssetInfo = ({
   }, [address, tokenId])
 
   return (
-    <Flex
-      height={type === 'list' ? `${LIST_HEIGHT}px` : `${HEIGHT}px`}
-      minWidth={type === 'list' ? '140px' : 0}
-      transition="background 250ms ease"
-      position={type === 'grid' ? 'absolute' : 'relative'}
-      bottom={type === 'grid' ? 0 : undefined}
-      width="100%"
-      pt={type === 'list' ? 6 : 4}
-      pb={type === 'list' ? 1 : 3}
-      px="3"
-      mx={type === 'list' ? 3 : 0}
-      alignItems="flex-end"
-      borderBottomRadius="5px"
-      borderTopRadius={type === 'list' ? '5px' : 0}
-      fontSize={type === 'list' ? '12px' : '14px'}
-      color={useColorModeValue('gray.700', 'white')}
-      border={type === 'list' ? '1px solid' : undefined}
-      borderTop="1px solid"
-      borderColor={useColorModeValue('gray.200', 'transparent')}
-      bg={useColorModeValue(
-        rarity && isMember ? rarity.type.color.light : 'gray.50',
-        rarity && isMember ? rarity.type.color.dark : 'gray.600',
-      )}
-      onClick={(e) => {
-        e.stopPropagation()
-        e.preventDefault()
-      }}
+    <Box
+      pr={type === 'list' ? 3 : 0}
+      width={type === 'list' ? '165px' : undefined}
     >
-      <Box
-        position="absolute"
-        pointerEvents="none"
+      <Flex
+        height={type === 'list' ? `${LIST_HEIGHT}px` : `${HEIGHT}px`}
+        minWidth={type === 'list' ? '140px' : 0}
+        transition="background 250ms ease"
+        position={type === 'grid' ? 'absolute' : 'relative'}
+        bottom={type === 'grid' ? 0 : undefined}
         width="100%"
-        top="0"
-        right="0"
-        height="100%"
-        borderBottomRightRadius="5px"
-        borderTopRightRadius={type === 'list' ? '5px' : 0}
-        overflow="hidden"
-        zIndex={0}
+        pt={type === 'list' ? 6 : 4}
+        pb={type === 'list' ? 1 : 3}
+        px="3"
+        alignItems="flex-end"
+        borderBottomRadius="5px"
+        borderTopRadius={type === 'list' ? '5px' : 0}
+        fontSize={type === 'list' ? '12px' : '14px'}
+        color={useColorModeValue('gray.700', 'white')}
+        border={type === 'list' ? '1px solid' : undefined}
+        borderTop="1px solid"
+        borderColor={useColorModeValue('gray.200', 'transparent')}
+        _hover={{
+          '.SuperSea__BuyNowContainer': {
+            opacity: 1,
+          },
+        }}
+        bg={useColorModeValue(
+          rarity && isSubscriber ? rarity.type.color.light : 'gray.50',
+          rarity && isSubscriber ? rarity.type.color.dark : 'gray.600',
+        )}
+        onClick={(e) => {
+          if ((e.target as HTMLElement).tagName !== 'A') {
+            e.preventDefault()
+          }
+          e.stopPropagation()
+        }}
       >
-        <Logo
+        <Box
           position="absolute"
-          opacity={useColorModeValue(rarity ? 0.75 : 0.35, 0.35)}
-          width={type === 'list' ? '70px' : '120px'}
-          height={type === 'list' ? '70px' : '120px'}
-          top="50%"
-          right="-16px"
-          transform="translateY(-50%)"
-          color={useColorModeValue(
-            rarity && isMember ? 'white' : 'gray.300',
-            'white',
-          )}
-        />
-      </Box>
-      <Menu isLazy autoSelect={false}>
-        <MenuButton
-          as={IconButton}
-          icon={<Icon as={FiMoreHorizontal} />}
-          size="md"
-          position="absolute"
+          pointerEvents="none"
+          width="100%"
           top="0"
-          bg="transparent"
-          height="20px"
-          mt="1"
-          minWidth="24px"
-          ml="5px"
-          left="0"
+          right="0"
+          height="100%"
+          borderBottomRightRadius="5px"
+          borderTopRightRadius={type === 'list' ? '5px' : 0}
+          overflow="hidden"
+          zIndex={0}
         >
-          More Options
-        </MenuButton>
-        <Portal>
-          <span className={SCOPED_CLASS_NAME}>
+          <Logo
+            position="absolute"
+            opacity={useColorModeValue(
+              rarity ? 0.4 : 0.35,
+              rarity ? 0.15 : 0.1,
+            )}
+            width={type === 'list' ? '70px' : '120px'}
+            height={type === 'list' ? '70px' : '120px'}
+            top="50%"
+            right="-16px"
+            transform="translateY(-50%)"
+            color={useColorModeValue(
+              rarity && isSubscriber ? 'white' : 'gray.300',
+              'white',
+            )}
+          />
+          <Box position="absolute" bottom="2" right="2">
+            <RefreshIndicator state={refreshState} />
+          </Box>
+        </Box>
+        <Menu autoSelect={false}>
+          <MenuButton
+            as={IconButton}
+            icon={<Icon as={FiMoreHorizontal} />}
+            size="md"
+            position="absolute"
+            top="0"
+            bg="transparent"
+            height="20px"
+            mt="1"
+            minWidth="24px"
+            ml="5px"
+            left="0"
+          >
+            More Options
+          </MenuButton>
+          <ScopedCSSPortal>
             <MenuList
               borderColor={useColorModeValue('gray.200', 'gray.800')}
               zIndex={2}
               color={useColorModeValue('black', 'white')}
+              fontSize="sm"
             >
               <MenuGroup
                 // @ts-ignore
@@ -285,73 +395,94 @@ const AssetInfo = ({
               >
                 <MenuItem
                   isDisabled={chain === 'polygon'}
-                  onClick={async () => {
-                    const assetInfo = await fetchAssetInfo(address, +tokenId)
-                    if (!assetInfo) {
-                      toast({
-                        duration: 3000,
-                        position: 'bottom-right',
-                        render: () => (
-                          <Toast
-                            text="Unable to queue OpenSea refresh at this moment."
-                            type="error"
-                          />
-                        ),
-                      })
-                      return
-                    }
-                    await triggerOpenSeaMetadataRefresh(assetInfo?.relayId)
-                    toast({
-                      duration: 3000,
-                      position: 'bottom-right',
-                      render: () => (
-                        <Toast text="Opensea metadata refresh queued." />
-                      ),
-                    })
-                  }}
+                  onClick={queueRefresh}
                 >
                   Queue OpenSea refresh
                 </MenuItem>
                 <MenuItem
                   isDisabled={chain === 'polygon'}
-                  onClick={async () => {
-                    try {
-                      const metadata = await fetchMetadata(address, +tokenId)
-                      const imgElement = container.querySelector(
-                        '.Image--image',
-                      ) as HTMLElement
-                      if (imgElement) {
-                        imgElement.style.opacity = '0'
-                        setTimeout(() => {
-                          imgElement.setAttribute('src', '')
-                        }, 0)
-                        setTimeout(() => {
-                          imgElement.style.opacity = '1'
-                          imgElement.setAttribute(
-                            'src',
-                            (metadata.image || metadata.image_url).replace(
-                              /^ipfs:\/\//,
-                              'https://ipfs.io/ipfs/',
-                            ),
-                          )
-                        }, 100)
-                      }
-                    } catch (err) {
-                      console.error(err)
-                      toast({
-                        duration: 3000,
-                        position: 'bottom-right',
-                        render: () => (
-                          <Toast
-                            text="Unable to load source image."
-                            type="error"
-                          />
-                        ),
-                      })
-                    }
-                  }}
+                  onClick={replaceImage}
                 >
                   Replace image from source
+                </MenuItem>
+                <MenuItem
+                  isDisabled={chain === 'polygon' || !isSubscriber}
+                  onClick={async () => {
+                    if (!isSubscriber) return
+                    globalConfig.autoQueueAddresses[address] = !globalConfig
+                      .autoQueueAddresses[address]
+
+                    if (!globalConfig.autoQueueAddresses[address]) {
+                      Object.keys(globalConfig.refreshQueued).forEach((key) => {
+                        const [_address] = key.split('/')
+                        if (address === _address) {
+                          globalConfig.refreshQueued[key] = false
+                        }
+                      })
+                    }
+
+                    events.emit('toggleAutoQueue', {
+                      value: globalConfig.autoQueueAddresses[address],
+                      address,
+                    })
+                  }}
+                >
+                  <Text maxWidth="210px">
+                    Mass-queue OpenSea refresh for collection
+                    {!isSubscriber && (
+                      <Box ml="1" display="inline-block">
+                        <LockedFeature />
+                      </Box>
+                    )}
+                    {isAutoQueued && (
+                      <CheckIcon
+                        width="12px"
+                        height="auto"
+                        display="inline-block"
+                        marginLeft="3px"
+                      />
+                    )}
+                  </Text>
+                </MenuItem>
+                <MenuItem
+                  isDisabled={chain === 'polygon' || !isSubscriber}
+                  onClick={async () => {
+                    if (!isSubscriber) return
+                    globalConfig.autoImageReplaceAddresses[
+                      address
+                    ] = !globalConfig.autoImageReplaceAddresses[address]
+
+                    if (!globalConfig.autoImageReplaceAddresses[address]) {
+                      Object.keys(globalConfig.imageReplaced).forEach((key) => {
+                        const [_address] = key.split('/')
+                        if (address === _address) {
+                          globalConfig.imageReplaced[key] = false
+                        }
+                      })
+                    }
+
+                    events.emit('toggleAutoReplaceImage', {
+                      value: globalConfig.autoImageReplaceAddresses[address],
+                      address,
+                    })
+                  }}
+                >
+                  <Text maxWidth="210px">
+                    Mass-replace image from source for collection
+                    {!isSubscriber && (
+                      <Box ml="1" display="inline-block">
+                        <LockedFeature />
+                      </Box>
+                    )}
+                    {isAutoImageReplaced && (
+                      <CheckIcon
+                        width="12px"
+                        height="auto"
+                        display="inline-block"
+                        marginLeft="3px"
+                      />
+                    )}
+                  </Text>
                 </MenuItem>
                 <MenuItem
                   isDisabled={chain === 'polygon'}
@@ -405,49 +536,75 @@ const AssetInfo = ({
                 </MenuItem>
               </MenuGroup>
             </MenuList>
-          </span>
-        </Portal>
-      </Menu>
-      <VStack
-        spacing={type === 'list' ? 0 : 1}
-        alignItems="flex-start"
-        width="100%"
-        zIndex={0}
-      >
-        <Flex width="100%" alignItems="center">
-          <Text opacity={0.7} mr="0.5em">
-            Rank:
-          </Text>
-          {rarity !== undefined ? (
-            <RarityBadge isMember={isMember} rarity={rarity} />
-          ) : (
-            <Spinner ml={1} width={3} height={3} opacity={0.75} />
-          )}
-        </Flex>
-        <Flex width="100%" alignItems="center">
-          <Text opacity={0.7} mr="0.5em">
-            Floor:{' '}
-          </Text>
-          {floor ? (
-            <>
-              {floor?.currency === 'ETH' ? <EthereumIcon /> : null}
-              <Link href={floor.floorSearchUrl}>
-                {floor === null ? (
-                  <Text>Unavailable</Text>
-                ) : (
-                  <Text verticalAlign="middle" fontWeight="500">
-                    {floor.price}
-                    {floor.currency !== 'ETH' ? ` ${floor.currency}` : null}
-                  </Text>
-                )}
-              </Link>
-            </>
-          ) : (
-            <Spinner ml={1} width={3} height={3} opacity={0.75} />
-          )}
-        </Flex>
-      </VStack>
-    </Flex>
+          </ScopedCSSPortal>
+        </Menu>
+        <VStack
+          spacing={type === 'list' ? 0 : 1}
+          alignItems="flex-start"
+          width="100%"
+          zIndex={0}
+        >
+          <Flex width="100%" alignItems="center">
+            <Text opacity={0.7} mr="0.5em">
+              Rank:
+            </Text>
+            {rarity !== undefined ? (
+              <RarityBadge isSubscriber={isSubscriber} rarity={rarity} />
+            ) : (
+              <Spinner ml={1} width={3} height={3} opacity={0.75} />
+            )}
+          </Flex>
+          <Flex width="100%" alignItems="center">
+            <Text opacity={0.7} mr="0.5em">
+              Floor:{' '}
+            </Text>
+            {floor ? (
+              <>
+                {floor?.currency === 'ETH' ? <EthereumIcon /> : null}
+                <Link
+                  href={floor.floorSearchUrl}
+                  fontWeight="500"
+                  verticalAlign="middle"
+                >
+                  {floor === null
+                    ? 'Unavailable'
+                    : `${floor.price} ${
+                        floor.currency !== 'ETH' ? ` ${floor.currency}` : ''
+                      }`}
+                </Link>
+              </>
+            ) : (
+              <Spinner ml={1} width={3} height={3} opacity={0.75} />
+            )}
+          </Flex>
+        </VStack>
+        <Box
+          position="absolute"
+          pointerEvents="none"
+          width="100%"
+          top="0"
+          right="0"
+          height="100%"
+          overflow="hidden"
+          zIndex={0}
+        >
+          <Box position="absolute" bottom="2" right="2">
+            <RefreshIndicator state={refreshState} />
+          </Box>
+        </Box>
+        <Box
+          position="absolute"
+          top="0"
+          right="0"
+          m="1"
+          className="SuperSea__BuyNowContainer"
+          opacity="0"
+          transition="opacity 115ms ease"
+        >
+          <BuyNowButton address={address} tokenId={tokenId} />
+        </Box>
+      </Flex>
+    </Box>
   )
 }
 

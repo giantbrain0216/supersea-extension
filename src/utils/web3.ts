@@ -1,8 +1,8 @@
 import Web3 from 'web3'
 
 const web3 = new Web3(
-  new Web3.providers.WebsocketProvider(
-    'wss://mainnet.infura.io/ws/v3/d0b2b7a59f94446e9f6f6753c55764fe',
+  new Web3.providers.HttpProvider(
+    'https://mainnet.infura.io/v3/d0b2b7a59f94446e9f6f6753c55764fe',
   ),
 )
 

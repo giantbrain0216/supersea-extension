@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import { IdProvider, ColorModeProvider } from '@chakra-ui/react'
 import { toCSSVar } from '@chakra-ui/styled-system'
 import {
@@ -7,10 +7,10 @@ import {
 } from '@emotion/react'
 import theme from '../theme'
 import { SCOPED_CLASS_NAME } from './ScopedCSSReset'
-import { User, UserProvider } from '../utils/user'
-import { getAccessToken } from '../utils/api'
+import { UserProvider } from '../utils/user'
+import EventEmitter from 'events'
 
-export const ThemeProvider = (props: EmotionThemeProviderProps) => {
+const ThemeProvider = (props: EmotionThemeProviderProps) => {
   const { theme, children } = props
   const computedTheme = React.useMemo(() => toCSSVar(theme), [theme])
   return (
@@ -20,6 +20,7 @@ export const ThemeProvider = (props: EmotionThemeProviderProps) => {
   )
 }
 
+// Providers from ChakraProvider, without the global styles (we add these separately once)
 const LeanChakraProvider = ({ children }: React.PropsWithChildren<{}>) => {
   return (
     <IdProvider>
@@ -32,18 +33,19 @@ const LeanChakraProvider = ({ children }: React.PropsWithChildren<{}>) => {
   )
 }
 
-// Providers from ChakraProvider, without the global styles (we add these separately once)
+const events = new EventEmitter()
+events.setMaxListeners(1000)
+export const EventEmitterContext = React.createContext(events)
+export const GlobalConfigContext = React.createContext({
+  autoQueueAddresses: {} as Record<string, boolean>,
+  refreshQueued: {} as Record<string, boolean>,
+  autoImageReplaceAddresses: {} as Record<string, boolean>,
+  imageReplaced: {} as Record<string, boolean>,
+})
+
 const AppProvider = ({ children }: React.PropsWithChildren<{}>) => {
-  const [user, setUser] = useState<User | null>(null)
-  useEffect(() => {
-    ;(async () => {
-      const accessToken = await getAccessToken()
-      setUser({ isMember: accessToken !== null })
-    })()
-  }, [])
-  if (!user) return null
   return (
-    <UserProvider value={user}>
+    <UserProvider>
       <LeanChakraProvider>{children}</LeanChakraProvider>
     </UserProvider>
   )

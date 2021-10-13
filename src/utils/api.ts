@@ -2,9 +2,12 @@ import DataLoader from 'dataloader'
 import { request, gql, GraphQLClient } from 'graphql-request'
 import { fetchMetadataUri } from '../utils/web3'
 import { RateLimit, Sema } from 'async-sema'
+import { User } from './user'
 
-const OPENSEA_SHARED_CONTRACT_ADDRESS =
-  '0x495f947276749ce646f68ac8c248420045cb7b5e'
+const OPENSEA_SHARED_CONTRACT_ADDRESSES = [
+  '0x495f947276749ce646f68ac8c248420045cb7b5e',
+  '0x2953399124f0cbb46d2cbacd8a89cf0599974963',
+]
 // Not exactly right but good enough to split tokenIds into their unique collections
 const OPENSEA_SHARED_CONTRACT_COLLECTION_ID_LENGTH = 60
 
@@ -29,6 +32,7 @@ export type AssetInfo = {
 
 export type Chain = 'ethereum' | 'polygon'
 
+const openSeaSema = new Sema(3)
 const openSeaRateLimit = RateLimit(3)
 
 const getOpenSeaHeaders = () => {
@@ -40,17 +44,33 @@ const getOpenSeaHeaders = () => {
 }
 
 const openSeaRequest = async (query: any, variables: any = {}) => {
+  await openSeaSema.acquire()
   await openSeaRateLimit()
-  let resp = null
-  const headers = await getOpenSeaHeaders()
+  let res = null
+  const headers = (await getOpenSeaHeaders()) as any
   try {
-    resp = await retryingOpenSeaRequest(query, variables, headers)
+    res = await request('https://api.opensea.io/graphql/', query, variables, {
+      ...headers,
+      'X-SIGNED-QUERY': 'SuperSea',
+    })
   } catch (err: any) {
     if (err.response && err.response.data) {
-      resp = err.response.data
+      res = err.response.data
     }
   }
-  return resp
+  chrome.storage.local.get(
+    ['openSeaRateLimitRemaining'],
+    ({ openSeaRateLimitRemaining }) => {
+      if (openSeaRateLimitRemaining > 10) {
+        openSeaSema.release()
+      } else {
+        setTimeout(() => {
+          openSeaSema.release()
+        }, 2500)
+      }
+    },
+  )
+  return res
 }
 
 const refreshTokenQuery = gql`
@@ -58,6 +78,9 @@ const refreshTokenQuery = gql`
     refreshToken {
       success
       accessToken
+      account {
+        role
+      }
     }
   }
 `
@@ -67,36 +90,27 @@ const tokenClient = new GraphQLClient('https://api.nonfungible.tools/graphql', {
   mode: 'cors',
 })
 
-const accessTokenSema = new Sema(1)
-let cachedAccessToken: string | null | undefined = undefined
-export const getAccessToken = async (refresh = false) => {
-  await accessTokenSema.acquire()
+const userSema = new Sema(1)
+let cachedUser:
+  | { accessToken: string; role: User['role'] }
+  | null
+  | undefined = undefined
+export const getUser = async (refresh = false) => {
+  await userSema.acquire()
   if (!refresh) {
-    if (cachedAccessToken !== undefined) {
-      accessTokenSema.release()
-      return cachedAccessToken
-    }
-
-    const storedToken = await new Promise((resolve) =>
-      chrome.storage.local.get(['accessToken'], ({ accessToken }) => {
-        resolve(accessToken)
-      }),
-    )
-    if (storedToken) {
-      cachedAccessToken = storedToken as string
-      accessTokenSema.release()
-      return storedToken
+    if (cachedUser !== undefined) {
+      userSema.release()
+      return cachedUser
     }
   }
   const {
-    refreshToken: { accessToken },
+    refreshToken: { accessToken, account },
   } = await tokenClient.request(refreshTokenQuery)
 
-  chrome.storage.local.set({ accessToken })
-  cachedAccessToken = accessToken
-  accessTokenSema.release()
+  cachedUser = { accessToken, role: account?.role || 'FREE' }
+  userSema.release()
 
-  return accessToken
+  return cachedUser
 }
 
 const nonFungibleRequest = async (
@@ -104,7 +118,8 @@ const nonFungibleRequest = async (
   variables: any = {},
   refreshAccessToken = false,
 ): Promise<any> => {
-  const accessToken = await getAccessToken(refreshAccessToken)
+  const user = await getUser(refreshAccessToken)
+  const accessToken = user?.accessToken
   try {
     const res = await request(
       'https://cdn.nonfungible.tools/graphql',
@@ -125,32 +140,6 @@ const nonFungibleRequest = async (
       return nonFungibleRequest(query, variables, true)
     }
     throw err
-  }
-}
-
-const retryingOpenSeaRequest = async (
-  query: any,
-  variables: any,
-  headers: any,
-  wait = 0,
-): Promise<any> => {
-  if (wait) await new Promise((resolve) => setTimeout(resolve, wait))
-  try {
-    const resp = await request(
-      'https://api.opensea.io/graphql/',
-      query,
-      variables,
-      headers,
-    )
-    return resp
-  } catch (err: any) {
-    if (err.response?.status === 429) {
-      const wait =
-        +err.response.error.match(/Please wait (\d+) microseconds./)[1] / 1000
-      return await retryingOpenSeaRequest(query, variables, headers, wait + 25)
-    } else {
-      throw err
-    }
   }
 }
 
@@ -192,7 +181,7 @@ const floorPriceLoader = new DataLoader(
     batchScheduleFn: (callback) => setTimeout(callback, 250),
     maxBatchSize: 10,
     cacheKeyFn: ({ address, tokenId }) => {
-      if (address === OPENSEA_SHARED_CONTRACT_ADDRESS)
+      if (OPENSEA_SHARED_CONTRACT_ADDRESSES.includes(address))
         return `${address}/${tokenId.slice(
           0,
           OPENSEA_SHARED_CONTRACT_COLLECTION_ID_LENGTH,
@@ -344,6 +333,7 @@ const userAssetsQuery = gql`
   }
 `
 
+const fetchAllAssetsRateLimit = RateLimit(3)
 export const fetchAllAssetsForUser = async ({
   userName,
   ensName,
@@ -364,6 +354,7 @@ export const fetchAllAssetsForUser = async ({
   let cursor = null
   let result: any[] = []
   while (hasNextPage) {
+    await fetchAllAssetsRateLimit()
     const res: any = await openSeaRequest(userAssetsQuery, {
       cursor,
       ...selector,

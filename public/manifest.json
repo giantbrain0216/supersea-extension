@@ -6,7 +6,8 @@
   "action": {
     "icons": {
       "128": "icon.png"
-    }
+    },
+    "default_popup": "index.html"
   },
   "content_scripts": [
     {
@@ -18,9 +19,18 @@
   "background": {
     "service_worker": "static/js/background.js"
   },
-  "host_permissions": ["https://*.opensea.io/*"],
+  "host_permissions": [
+    "https://*.opensea.io/*",
+    "https://*.nonfungible.tools/*"
+  ],
   "icons": {
     "128": "icon.png"
   },
+  "web_accessible_resources": [
+    {
+      "resources": ["static/js/pageContextInject.js"],
+      "matches": ["https://*.opensea.io/*"]
+    }
+  ],
   "permissions": ["webRequest", "storage"]
 }
