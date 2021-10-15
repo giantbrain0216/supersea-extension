@@ -12,10 +12,10 @@ const GlobalStyles = () => {
             paddingBottom: ASSET_INFO_HEIGHT,
             position: 'relative',
           },
-          '.ActivitySearch--history div[role="listitem"]': {
+          '*[class*="ActivitySearch"] div[role="listitem"]': {
             minHeight: 95,
           },
-          '.ActivitySearch--history *[class*="FeatureTableCell"]:nth-child(2)': {
+          '*[class*="ActivitySearch"] *[class*="FeatureTableCell"]:nth-child(2)': {
             width: '500px !important',
             flex: '0 0 500px !important',
           },

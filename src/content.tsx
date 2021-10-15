@@ -80,18 +80,23 @@ const injectAssetInfo = () => {
       }
       let link = null
       if (type === 'grid') {
-        link = node.closest('.Asset--anchor')
-        if (!link) {
-          link = node.querySelector('.Asset--anchor')
-        }
-      } else if (type === 'list' && version === 2) {
-        link = node.closest('a')
+        link =
+          node.closest('.Asset--anchor') || node.querySelector('.Asset--anchor')
+      } else if (type === 'list') {
+        link =
+          node.closest('.AssetCell--link') ||
+          node.querySelector('.AssetCell--link')
       } else {
         link = node.querySelector('.AssetCell--link')
       }
       if (link) {
         const [tokenType, address, tokenId] =
-          link.getAttribute('href')?.split('/').slice(-3) || []
+          link
+            .getAttribute('href')
+            ?.split('/')
+            .filter((s) => s.length)
+            .slice(-3) || []
+
         return {
           address,
           tokenId,
