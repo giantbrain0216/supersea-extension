@@ -7,98 +7,81 @@ import AssetInfo from './components/AssetInfo'
 import ProfileSummary from './components/ProfileSummary'
 import GlobalStyles from './components/GlobalStyles'
 import { getExtensionConfig } from './utils/extensionConfig'
-
-const REMOTE_ASSET_BASE = 'http://localhost:3000/supersea'
+import { fetchGlobalCSS, fetchSelectors } from './utils/api'
+import { selectElement } from './utils/selector'
 
 const NODE_BUNDLE_PROCESSED_DATA_KEY = '__Processed__Bundle'
 const NODE_ASSET_PROCESSED_DATA_KEY = '__Processed__Asset'
-const NODE_TABLE_PROCESSED_DATA_KEY = '__Processed__Table'
 const NODE_PROFILE_PROCESSED_DATA_KEY = '__Processed__Profile'
-
-const getPage = () => {
-  const path = window.location.pathname.split('/')
-  if (path[1] === 'collection') {
-    const collectionAssetHref =
-      document
-        .querySelector('.AssetSearchView--results .Asset--anchor')
-        ?.getAttribute('href') || ''
-
-    return {
-      type: 'collection',
-      ethAddress: collectionAssetHref.split('/')[2],
-    }
-  } else if (path[1] === 'assets') {
-    const [tokenType, address, tokenId] = path.slice(-3)
-    return {
-      type: 'asset',
-      ethAddress: address.toLowerCase(),
-      chain:
-        tokenType === 'matic' ? ('polygon' as const) : ('ethereum' as const),
-      tokenId,
-    }
-  }
-}
 
 const addGlobalStyle = () => {
   const globalContainer = document.createElement('div')
   document.body.appendChild(globalContainer)
   injectReact(<GlobalStyles />, globalContainer)
-
-  fetch(`${REMOTE_ASSET_BASE}/styleOverrides.css`)
-    .then((res) => res.text())
-    .then((css) => {
-      const style = document.createElement('style')
-      style.textContent = css
-      document.head.appendChild(style)
-    })
+  fetchGlobalCSS().then((css) => {
+    const style = document.createElement('style')
+    style.textContent = css
+    document.head.appendChild(style)
+  })
 }
 
-const injectAssetInfo = () => {
+const injectAssetInfo = async () => {
+  const selectors = await fetchSelectors()
+
   const gridNodes = Array.from(
-    document.querySelectorAll('article.AssetSearchList--asset'),
+    document.querySelectorAll(selectors.assetInfo.grid.node.selector),
   )
-  const listNodesV1 = Array.from(
-    document.querySelectorAll('.EventHistory--row'),
+  const listNodes = Array.from(
+    document.querySelectorAll(selectors.assetInfo.list.node.selector),
   )
-  const listNodesV2 = Array.from(
-    document.querySelectorAll('div[role="listitem"] .AssetCell--container'),
+  const itemNode = document.querySelector(
+    selectors.assetInfo.item.node.selector,
   )
-  const itemNode = document.querySelector('.item--summary > article')
+
   const nodes = [
-    ...gridNodes.map((node) => ({ node, type: 'grid' })),
-    ...listNodesV1.map((node) => ({ node, type: 'list', version: 1 })),
-    ...listNodesV2.map((node) => ({ node, type: 'list', version: 2 })),
-    ...(itemNode ? [{ node: itemNode, type: 'item' }] : []),
+    ...gridNodes.map((node) => ({
+      node,
+      type: 'grid',
+      selectorConfig: selectors.assetInfo.grid,
+    })),
+    ...listNodes.map((node) => ({
+      node,
+      type: 'list',
+      selectorConfig: selectors.assetInfo.list,
+    })),
+    ...(itemNode
+      ? [
+          {
+            node: itemNode,
+            type: 'item',
+            selectorConfig: selectors.assetInfo.item,
+          },
+        ]
+      : []),
   ] as {
     node: HTMLElement
-    version?: number
     type: React.ComponentProps<typeof AssetInfo>['type']
+    selectorConfig: Selectors['assetInfo'][keyof Selectors['assetInfo']]
   }[]
 
-  nodes.forEach(({ node, type, version }) => {
+  nodes.forEach(({ node, type, selectorConfig }) => {
     if (node.dataset[NODE_ASSET_PROCESSED_DATA_KEY]) return
     node.dataset[NODE_ASSET_PROCESSED_DATA_KEY] = '1'
 
     const { address, tokenId, chain } = (() => {
       if (type === 'item') {
-        const page = getPage()
+        const path = window.location.pathname.split('/')
+        const [tokenType, address, tokenId] = path.slice(-3)
         return {
-          address: page?.ethAddress.toLowerCase(),
-          tokenId: page?.tokenId,
-          chain: page?.chain,
+          address: address.toLowerCase(),
+          tokenId: tokenId,
+          chain:
+            tokenType === 'matic'
+              ? ('polygon' as const)
+              : ('ethereum' as const),
         }
       }
-      let link = null
-      if (type === 'grid') {
-        link =
-          node.closest('.Asset--anchor') || node.querySelector('.Asset--anchor')
-      } else if (type === 'list') {
-        link =
-          node.closest('.AssetCell--link') ||
-          node.querySelector('.AssetCell--link')
-      } else {
-        link = node.querySelector('.AssetCell--link')
-      }
+      let link = selectElement(node, selectorConfig.link)
       if (link) {
         const [tokenType, address, tokenId] =
           link
@@ -122,43 +105,12 @@ const injectAssetInfo = () => {
 
     const container = document.createElement('div')
     container.classList.add('SuperSea__AssetInfo')
+    container.classList.add(`SuperSea__AssetInfo--${type}`)
     container.classList.add('SuperSea__AssetInfo--Unrendered')
-    if (type === 'grid') {
-      // Disable hover transforms, since it causes issues with popover and makes
-      // things more annoying to click
-      node.style.transform = 'none'
-      node.appendChild(container)
-    } else if (type === 'item') {
-      const image = node.querySelector('.Image--image')
-      const imageContainer = image?.parentElement
-      if (imageContainer) {
-        // AssetInfo looks better without rounded corners on the image on single items
-        imageContainer.style.borderRadius = '0'
-      }
-      node.appendChild(container)
-    } else if (type === 'list' && version === 1) {
-      const itemColHeader = node.parentElement!.querySelector(
-        '.EventHistory--item-col',
-      )! as HTMLElement
-      if (!itemColHeader.dataset[NODE_TABLE_PROCESSED_DATA_KEY]) {
-        itemColHeader.dataset[NODE_TABLE_PROCESSED_DATA_KEY] = '1'
-        const headerColumn = document.createElement('div')
-        headerColumn.classList.add('Row--cell')
-        headerColumn.style.flex = '0 0 200px'
-        itemColHeader.parentNode!.insertBefore(headerColumn, itemColHeader)
-      }
-      container.classList.add('Row--cell')
-      container.style.flex = '0 0 200px'
-      container.style.overflow = 'visible'
-      container.style.padding = '0 10px'
-      node.insertBefore(
-        container,
-        node.querySelector('.EventHistory--item-col'),
-      )
-    } else if (type === 'list' && version === 2) {
-      container.style.zIndex = '1'
-      container.style.minWidth = '165px'
+    if (selectorConfig.node.injectionMethod === 'prepend') {
       node.prepend(container)
+    } else {
+      node.append(container)
     }
     container.dataset['address'] = address
     container.dataset['tokenId'] = tokenId
@@ -189,9 +141,10 @@ const destroyRemovedInjections = () => {
   })
 }
 
-const injectBundleVerification = () => {
+const injectBundleVerification = async () => {
+  const selectors = await fetchSelectors()
   const bundleFrames = Array.from(
-    document.querySelectorAll('.Bundle--summary-frame'),
+    document.querySelectorAll(selectors.bundleVerification.frameSelector),
   ) as HTMLElement[]
 
   bundleFrames.forEach((bundleFrame) => {
@@ -200,7 +153,7 @@ const injectBundleVerification = () => {
 
     bundleFrame.dataset[NODE_BUNDLE_PROCESSED_DATA_KEY] = '1'
     const assets = Array.from(
-      bundleFrame.querySelectorAll('.Bundle--items-list > a'),
+      bundleFrame.querySelectorAll(selectors.bundleVerification.linkSelector),
     ) as HTMLAnchorElement[]
     if (assets.length) {
       const addresses = _.groupBy(
@@ -210,9 +163,12 @@ const injectBundleVerification = () => {
       )
       const numAddresses = Object.keys(addresses).length
 
-      const header = bundleFrame.querySelector('header')
+      const header = bundleFrame.querySelector(
+        selectors.bundleVerification.headerSelector,
+      )
       if (header) {
         const container = document.createElement('div')
+        container.classList.add('SuperSea__BundleVerification')
         header.parentNode?.insertBefore(container, header.nextSibling)
         injectReact(
           <BundleVerification numAddresses={numAddresses} />,
@@ -223,9 +179,10 @@ const injectBundleVerification = () => {
   })
 }
 
-const injectProfileSummary = () => {
+const injectProfileSummary = async () => {
+  const selectors = await fetchSelectors()
   const accountTitle = document.querySelector(
-    '.AccountHeader--title',
+    selectors.profileSummary.accountTitleSelector,
   ) as HTMLElement
   const accountBanner = accountTitle?.parentElement
 
@@ -234,7 +191,7 @@ const injectProfileSummary = () => {
 
   const userName = accountTitle.innerText
   const ensName = (accountBanner.querySelector(
-    '.AccountHeader--name',
+    selectors.profileSummary.accountEnsNameSelector,
   ) as HTMLElement | null)?.innerText
   const addressSlug = window.location.pathname.split('/')[1]
   const address =
@@ -338,9 +295,10 @@ const initialize = async () => {
     setupKeepAlivePing()
     addGlobalStyle()
     setupAssetInfoRenderer()
-  }
-  if (config.quickBuyEnabled) {
-    injectInPageContextScript()
+
+    if (config.quickBuyEnabled) {
+      injectInPageContextScript()
+    }
   }
 }
 

@@ -32,6 +32,7 @@ import {
   fetchMetadata,
   fetchMetadataUriWithOpenSeaFallback,
   fetchRarities,
+  fetchSelectors,
   Floor,
   triggerOpenSeaMetadataRefresh,
 } from '../utils/api'
@@ -45,6 +46,7 @@ import { EventEmitterContext, GlobalConfigContext } from './AppProvider'
 import { RateLimit } from 'async-sema'
 import BuyNowButton from './BuyNowButton'
 import LockedFeature from './LockedFeature'
+import { selectElement } from '../utils/selector'
 
 export const HEIGHT = 85
 export const LIST_HEIGHT = 62
@@ -150,9 +152,13 @@ const AssetInfo = ({
 
   const replaceImage = useCallback(async () => {
     await replaceImageRateLimit()
+    const selectors = await fetchSelectors()
     try {
       const metadata = await fetchMetadata(address, +tokenId)
-      const imgElement = container.querySelector('.Image--image') as HTMLElement
+      const imgElement = selectElement(
+        container,
+        selectors.assetInfo[type].image,
+      ) as HTMLElement
       if (imgElement) {
         imgElement.style.opacity = '0'
         setTimeout(() => {
@@ -179,7 +185,7 @@ const AssetInfo = ({
         ),
       })
     }
-  }, [address, container, toast, tokenId])
+  }, [address, container, toast, tokenId, type])
 
   const autoReplaceImage = useCallback(() => {
     if (globalConfig.autoImageReplaceAddresses[address]) {

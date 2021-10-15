@@ -1,0 +1,55 @@
+{
+  "assetInfo": {
+    "grid": {
+      "node": {
+        "selector": "article.AssetSearchList--asset",
+        "injectionMethod": "append"
+      },
+      "link": {
+        "selector": ".Asset--anchor",
+        "hierarchy": "either"
+      },
+      "image": {
+        "selector": ".Image--image",
+        "hierarchy": "child"
+      }
+    },
+    "list": {
+      "node": {
+        "selector": "div[role=\"listitem\"] .AssetCell--container",
+        "injectionMethod": "prepend"
+      },
+      "link": {
+        "selector": ".AssetCell--link",
+        "hierarchy": "either"
+      },
+      "image": {
+        "selector": ".Image--image",
+        "hierarchy": "child"
+      }
+    },
+    "item": {
+      "node": {
+        "selector": ".item--summary > article, .item--small > article",
+        "injectionMethod": "append"
+      },
+      "link": {
+        "selector": ".AssetCell--link",
+        "hierarchy": "child"
+      },
+      "image": {
+        "selector": ".Image--image",
+        "hierarchy": "child"
+      }
+    }
+  },
+  "bundleVerification": {
+    "frameSelector": ".Bundle--summary-frame",
+    "linkSelector": ".Bundle--items-list > a",
+    "headerSelector": "header"
+  },
+  "profileSummary": {
+    "accountTitleSelector": ".AccountHeader--title",
+    "accountEnsNameSelector": ".AccountHeader--name"
+  }
+}
