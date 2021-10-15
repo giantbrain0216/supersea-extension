@@ -8,6 +8,8 @@ import ProfileSummary from './components/ProfileSummary'
 import GlobalStyles from './components/GlobalStyles'
 import { getExtensionConfig } from './utils/extensionConfig'
 
+const REMOTE_ASSET_BASE = 'http://localhost:3000/supersea'
+
 const NODE_BUNDLE_PROCESSED_DATA_KEY = '__Processed__Bundle'
 const NODE_ASSET_PROCESSED_DATA_KEY = '__Processed__Asset'
 const NODE_TABLE_PROCESSED_DATA_KEY = '__Processed__Table'
@@ -41,6 +43,14 @@ const addGlobalStyle = () => {
   const globalContainer = document.createElement('div')
   document.body.appendChild(globalContainer)
   injectReact(<GlobalStyles />, globalContainer)
+
+  fetch(`${REMOTE_ASSET_BASE}/styleOverrides.css`)
+    .then((res) => res.text())
+    .then((css) => {
+      const style = document.createElement('style')
+      style.textContent = css
+      document.head.appendChild(style)
+    })
 }
 
 const injectAssetInfo = () => {
