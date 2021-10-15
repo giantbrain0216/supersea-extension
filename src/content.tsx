@@ -146,6 +146,8 @@ const injectAssetInfo = () => {
         node.querySelector('.EventHistory--item-col'),
       )
     } else if (type === 'list' && version === 2) {
+      container.style.zIndex = '1'
+      container.style.minWidth = '165px'
       node.prepend(container)
     }
     container.dataset['address'] = address
@@ -304,10 +306,10 @@ const setupAssetInfoRenderer = () => {
       console.error('AssetInfo inject error', err)
     }
     setTimeout(() => {
-      window.requestIdleCallback(render)
+      window.requestIdleCallback(render, { timeout: 500 })
     }, 250)
   }
-  window.requestIdleCallback(render)
+  window.requestIdleCallback(render, { timeout: 500 })
 }
 
 // We need to keep the background script alive for webRequest handlers
