@@ -8,7 +8,7 @@ import ProfileSummary from './components/ProfileSummary'
 import GlobalStyles from './components/GlobalStyles'
 import { getExtensionConfig } from './utils/extensionConfig'
 import { fetchGlobalCSS, fetchSelectors } from './utils/api'
-import { selectElement } from './utils/selector'
+import { selectElement, Selectors } from './utils/selector'
 
 const NODE_BUNDLE_PROCESSED_DATA_KEY = '__Processed__Bundle'
 const NODE_ASSET_PROCESSED_DATA_KEY = '__Processed__Asset'
