@@ -3,6 +3,8 @@ import { request, gql, GraphQLClient } from 'graphql-request'
 import { fetchMetadataUri } from '../utils/web3'
 import { RateLimit, Sema } from 'async-sema'
 import { User } from './user'
+import lastKnownInjectionSelectors from '../assets/lastKnownInjectionSelectors.json'
+import { Selectors } from './selector'
 
 const OPENSEA_SHARED_CONTRACT_ADDRESSES = [
   '0x495f947276749ce646f68ac8c248420045cb7b5e',
@@ -32,8 +34,35 @@ export type AssetInfo = {
 
 export type Chain = 'ethereum' | 'polygon'
 
+const REMOTE_ASSET_BASE = 'https://nonfungible.tools/supersea'
+
 const openSeaSema = new Sema(3)
 const openSeaRateLimit = RateLimit(3)
+
+let selectorsPromise: null | Promise<Selectors> = null
+export const fetchSelectors = () => {
+  if (!selectorsPromise) {
+    // Fallback to last known selectors if request takes more than 5 seconds
+    selectorsPromise = Promise.race<Promise<Selectors>>([
+      fetch(`${REMOTE_ASSET_BASE}/injectionSelectors.json`).then((res) =>
+        res.json(),
+      ),
+      new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('timeout')), 5000)
+      }),
+    ]).catch((err) => {
+      console.error(err)
+      return lastKnownInjectionSelectors as Selectors
+    })
+  }
+  return selectorsPromise
+}
+
+export const fetchGlobalCSS = () => {
+  return fetch(`${REMOTE_ASSET_BASE}/styleOverrides.css`).then((res) =>
+    res.text(),
+  )
+}
 
 const getOpenSeaHeaders = () => {
   return new Promise((resolve) => {
