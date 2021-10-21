@@ -17,16 +17,13 @@ import {
   IconButton,
   useToast,
   Tag,
-  HStack,
   useColorModeValue,
   Tooltip,
 } from '@chakra-ui/react'
 import { FiMoreHorizontal, FiExternalLink } from 'react-icons/fi'
-import { LockIcon } from '@chakra-ui/icons'
 
 import {
   Chain,
-  fetchAssetInfo,
   fetchFloorPrice,
   fetchIsRanked,
   fetchMetadata,
@@ -213,14 +210,8 @@ const AssetInfo = ({
   const queueRefresh = useCallback(async () => {
     if (refreshState === 'QUEUING') return
     setRefreshState('QUEUING')
-    await queueRefreshRateLimit()
-    const assetInfo = await fetchAssetInfo(address, +tokenId)
-    if (!assetInfo) {
-      setRefreshState('FAILED')
-      return
-    }
-    await triggerOpenSeaMetadataRefresh(assetInfo?.relayId)
-    setRefreshState('QUEUED')
+    const success = await triggerOpenSeaMetadataRefresh(address, tokenId)
+    setRefreshState(success ? 'QUEUED' : 'FAILED')
   }, [address, refreshState, tokenId])
 
   const autoQueueRefresh = useCallback(() => {

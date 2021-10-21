@@ -32,9 +32,24 @@ export type AssetInfo = {
   tokenMetadata: string
 }
 
+export type Asset = {
+  displayImageUrl: string
+  name: string
+  collection: {
+    name: string
+  }
+  order: {
+    perUnitPrice: {
+      eth: string
+    }
+    orderType: string
+  } | null
+}
+
 export type Chain = 'ethereum' | 'polygon'
 
-const REMOTE_ASSET_BASE = 'https://nonfungible.tools/supersea'
+// const REMOTE_ASSET_BASE = 'https://nonfungible.tools/supersea'
+const REMOTE_ASSET_BASE = 'http://localhost:3000/supersea'
 
 const openSeaSema = new Sema(3)
 const openSeaRateLimit = RateLimit(3)
@@ -423,8 +438,17 @@ export const fetchMetadata = async (
       return data
     }
   } catch (err) {}
-  const assetInfo = await fetchAssetInfo(contractAddress, tokenId)
-  return fetch(assetInfo?.tokenMetadata).then((res) => res.json())
+  const query = gql`
+    query {
+      archetype(archetype: {assetContractAddress: "${contractAddress}", tokenId: "${tokenId}"}) {
+        asset {
+          tokenMetadata
+        }
+      }
+    }
+  `
+  const res = await openSeaRequest(query)
+  return res.archetype.asset.tokenMetadata
 }
 
 export const fetchMetadataUriWithOpenSeaFallback = async (
@@ -433,22 +457,74 @@ export const fetchMetadataUriWithOpenSeaFallback = async (
 ) => {
   const contractTokenUri = await fetchMetadataUri(address, tokenId)
   if (!contractTokenUri) {
-    const assetInfo = await fetchAssetInfo(address, tokenId)
-    return assetInfo?.tokenMetadata
+    const query = gql`
+      query {
+        archetype(archetype: {assetContractAddress: "${address}", tokenId: "${tokenId}"}) {
+          asset {
+            tokenMetadata
+          }
+        }
+      }
+    `
+    const res = await openSeaRequest(query)
+    return res.archetype.asset.tokenMetadata
   }
   return contractTokenUri.replace(/^ipfs:\/\//, 'https://ipfs.io/ipfs/')
 }
 
-const openSeaRefreshMetaDataMutation = gql`
-  mutation RefreshMetadata($asset: AssetRelayID!) {
-    assets {
-      refresh(asset: $asset)
-    }
-  }
-`
+const refreshLoader = new DataLoader(
+  async (addressIdPairs: readonly string[]) => {
+    const query = gql`
+      query {
+        ${addressIdPairs.map((addressIdPair) => {
+          const [address, tokenId] = addressIdPair.split('_')
+          return `
+            addr_id_${addressIdPair}:  archetype(archetype: {assetContractAddress: "${address}", tokenId: "${tokenId}"}) {
+              asset {
+                relayId
+              }
+            }
+          `
+        })}
+      }
+    `
+    const res = await openSeaRequest(query)
+    const mutation = gql`
+      mutation {
+        assets {
+          ${addressIdPairs.map((addressIdPair) => {
+            const response = res[`addr_id_${addressIdPair}`]
+            const relayId = response.asset.relayId
+            return `
+              addr_id_${addressIdPair}: refresh(asset: "${relayId}") 
+            `
+          })}
+        }
+      }
+    `
+    const mutationRes = await openSeaRequest(mutation)
+    return addressIdPairs.map((addressIdPair) => {
+      if (!mutationRes) return null
+      const response = mutationRes.assets[`addr_id_${addressIdPair}`]
+      return response
+    })
+  },
+  {
+    batchScheduleFn: (callback) => setTimeout(callback, 1500),
+    maxBatchSize: 10,
+  },
+)
 
-export const triggerOpenSeaMetadataRefresh = async (assetId: string) => {
-  return openSeaRequest(openSeaRefreshMetaDataMutation, {
-    asset: assetId,
-  })
+export const triggerOpenSeaMetadataRefresh = async (
+  address: string,
+  tokenId: string,
+) => {
+  return refreshLoader.load(`${address}_${tokenId}`) as Promise<Boolean>
+}
+
+export const fetchCollectionAddress = async (slug: string) => {
+  const data = await fetch(
+    `https://api.opensea.io/api/v1/assets?limit=1&collection=${slug}`,
+  ).then((res) => res.json())
+  return data.assets[0].asset_contract.address
 }
