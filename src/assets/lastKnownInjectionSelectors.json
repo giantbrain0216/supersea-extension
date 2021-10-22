@@ -10,7 +10,7 @@
         "hierarchy": "either"
       },
       "image": {
-        "selector": ".Image--image",
+        "selector": ".Image--image, .SuperSea__Image",
         "hierarchy": "child"
       }
     },
@@ -51,5 +51,9 @@
   "profileSummary": {
     "accountTitleSelector": ".AccountHeader--title",
     "accountEnsNameSelector": ".AccountHeader--name"
+  },
+  "searchResults": {
+    "menuSelector": "*[class*=\"collection__DivContainer\"] ul[class*=\"Menureact__MenuBase\"]",
+    "containerSelector": ".AssetSearchView--main"
   }
 }

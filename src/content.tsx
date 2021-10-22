@@ -1,18 +1,19 @@
 import _ from 'lodash'
 import React from 'react'
 import ReactDOM from 'react-dom'
+import queryString from 'query-string'
 import AppProvider from './components/AppProvider'
 import BundleVerification from './components/BundleVerification'
 import AssetInfo from './components/AssetInfo'
 import ProfileSummary from './components/ProfileSummary'
 import GlobalStyles from './components/GlobalStyles'
-import { getExtensionConfig } from './utils/extensionConfig'
+import { ExtensionConfig, getExtensionConfig } from './utils/extensionConfig'
 import { fetchGlobalCSS, fetchSelectors } from './utils/api'
 import { selectElement, Selectors } from './utils/selector'
+import SearchResults from './components/SearchResults/SearchResults'
+import CollectionMenuItem from './components/CollectionMenuItem'
 
-const NODE_BUNDLE_PROCESSED_DATA_KEY = '__Processed__Bundle'
-const NODE_ASSET_PROCESSED_DATA_KEY = '__Processed__Asset'
-const NODE_PROFILE_PROCESSED_DATA_KEY = '__Processed__Profile'
+const NODE_PROCESSED_DATA_KEY = '__SuperSea__Processed'
 
 const addGlobalStyle = () => {
   const globalContainer = document.createElement('div')
@@ -65,8 +66,8 @@ const injectAssetInfo = async () => {
   }[]
 
   nodes.forEach(({ node, type, selectorConfig }) => {
-    if (node.dataset[NODE_ASSET_PROCESSED_DATA_KEY]) return
-    node.dataset[NODE_ASSET_PROCESSED_DATA_KEY] = '1'
+    if (node.dataset[NODE_PROCESSED_DATA_KEY]) return
+    node.dataset[NODE_PROCESSED_DATA_KEY] = '1'
 
     const { address, tokenId, chain } = (() => {
       if (type === 'item') {
@@ -129,8 +130,10 @@ const injectReact = (
   ReactDOM.render(<AppProvider>{content}</AppProvider>, target, callback)
 }
 
+let cleanupActive = true
 const destroyRemovedInjections = () => {
   window.requestIdleCallback(() => {
+    if (!cleanupActive) return
     injectedReactContainers = injectedReactContainers.filter((container) => {
       if (!document.body.contains(container)) {
         ReactDOM.unmountComponentAtNode(container as Element)
@@ -148,10 +151,9 @@ const injectBundleVerification = async () => {
   ) as HTMLElement[]
 
   bundleFrames.forEach((bundleFrame) => {
-    if (!bundleFrame || bundleFrame.dataset[NODE_BUNDLE_PROCESSED_DATA_KEY])
-      return
+    if (!bundleFrame || bundleFrame.dataset[NODE_PROCESSED_DATA_KEY]) return
 
-    bundleFrame.dataset[NODE_BUNDLE_PROCESSED_DATA_KEY] = '1'
+    bundleFrame.dataset[NODE_PROCESSED_DATA_KEY] = '1'
     const assets = Array.from(
       bundleFrame.querySelectorAll(selectors.bundleVerification.linkSelector),
     ) as HTMLAnchorElement[]
@@ -186,8 +188,7 @@ const injectProfileSummary = async () => {
   ) as HTMLElement
   const accountBanner = accountTitle?.parentElement
 
-  if (!accountBanner || accountBanner.dataset[NODE_PROFILE_PROCESSED_DATA_KEY])
-    return
+  if (!accountBanner || accountBanner.dataset[NODE_PROCESSED_DATA_KEY]) return
 
   const userName = accountTitle.innerText
   const ensName = (accountBanner.querySelector(
@@ -198,7 +199,7 @@ const injectProfileSummary = async () => {
     addressSlug === 'account'
       ? (window as any).ethereum?.selectedAddress
       : addressSlug
-  accountBanner.dataset[NODE_PROFILE_PROCESSED_DATA_KEY] = '1'
+  accountBanner.dataset[NODE_PROCESSED_DATA_KEY] = '1'
   const container = document.createElement('div')
   accountBanner.appendChild(container)
   injectReact(
@@ -227,15 +228,96 @@ const injectInPageContextScript = () => {
   }
 }
 
+const injectSearchResults = async () => {
+  const selectors = await fetchSelectors()
+  const container = document.querySelector(
+    selectors.searchResults.containerSelector,
+  )!.parentElement as HTMLElement | null
+  if (container) {
+    const collectionMenu = document.querySelector(
+      selectors.searchResults.menuSelector,
+    ) as HTMLElement | null
+    if (collectionMenu) {
+      collectionMenu.classList.add('SuperSea--tabActive')
+    }
+    const reactContainer = document.createElement('div')
+    container.classList.add('SuperSea__SearchResults')
+    container.replaceWith(reactContainer)
+    cleanupActive = false
+
+    const messageListener = (event: MessageEvent) => {
+      if (event.data.method === 'SuperSea__Next__routeChangeComplete') {
+        reactContainer.replaceWith(container)
+        if (collectionMenu) {
+          collectionMenu.classList.remove('SuperSea--tabActive')
+        }
+        window.removeEventListener('message', messageListener)
+        cleanupActive = true
+      }
+    }
+
+    window.addEventListener('message', messageListener)
+    const collectionSlug = window.location.pathname
+      .split('/')
+      .filter(Boolean)
+      .pop()
+
+    injectReact(
+      <SearchResults collectionSlug={collectionSlug!} />,
+      reactContainer,
+    )
+  }
+}
+
+const injectCollectionMenu = async () => {
+  const selectors = await fetchSelectors()
+  const collectionMenu = document.querySelector(
+    selectors.searchResults.menuSelector,
+  ) as HTMLElement | null
+  if (collectionMenu && !collectionMenu.dataset[NODE_PROCESSED_DATA_KEY]) {
+    collectionMenu.dataset[NODE_PROCESSED_DATA_KEY] = '1'
+    const container = document.createElement('li')
+    container.classList.add('SuperSea__CollectionMenuItem')
+    container.classList.add('SuperSea__CollectionMenuItem--items')
+    collectionMenu.append(container)
+    injectReact(
+      <CollectionMenuItem
+        type="items"
+        onClick={() => {
+          const collectionSlug = window.location.pathname
+            .split('/')
+            .filter(Boolean)
+            .pop()
+          window.postMessage({
+            method: 'SuperSea__Navigate',
+            params: {
+              url: `/collection?collectionSlug=${collectionSlug}&tab=supersea`,
+              as: `/collection/${collectionSlug}?tab=supersea`,
+              options: {
+                scroll: false,
+              },
+            },
+          })
+        }}
+      />,
+      container,
+    )
+  }
+}
+
+const throttledInjectCollectionMenu = _.throttle(injectCollectionMenu, 250)
+
 const setupInjections = async () => {
   injectBundleVerification()
   injectAssetInfo()
   injectProfileSummary()
+  injectCollectionMenu()
 
   const observer = new MutationObserver(() => {
     throttledInjectBundleVerification()
     throttledInjectAssetInfo()
     throttledInjectProfileSummary()
+    throttledInjectCollectionMenu()
     throttledDestroyRemovedInjections()
   })
 
@@ -279,6 +361,21 @@ const setupAssetInfoRenderer = () => {
   window.requestIdleCallback(render, { timeout: 500 })
 }
 
+const setupSearchResultsTab = () => {
+  const query = queryString.parse(window.location.search)
+  if (query.tab === 'supersea') {
+    injectSearchResults()
+  }
+  window.addEventListener('message', (event) => {
+    if (event.data.method === 'SuperSea__Next__routeChangeComplete') {
+      const query = queryString.parse(event.data.params.url.split('?')[1])
+      if (query.tab === 'supersea') {
+        injectSearchResults()
+      }
+    }
+  })
+}
+
 // We need to keep the background script alive for webRequest handlers
 const setupKeepAlivePing = () => {
   setInterval(() => {
@@ -295,10 +392,8 @@ const initialize = async () => {
     setupKeepAlivePing()
     addGlobalStyle()
     setupAssetInfoRenderer()
-
-    if (config.quickBuyEnabled) {
-      injectInPageContextScript()
-    }
+    setupSearchResultsTab()
+    injectInPageContextScript()
   }
 }
 

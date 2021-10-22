@@ -27,6 +27,10 @@ export type Selectors = {
     accountTitleSelector: string
     accountEnsNameSelector: string
   }
+  searchResults: {
+    menuSelector: string
+    containerSelector: string
+  }
 }
 
 export const selectElement = (

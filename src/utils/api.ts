@@ -33,17 +33,23 @@ export type AssetInfo = {
 }
 
 export type Asset = {
-  displayImageUrl: string
   name: string
   collection: {
     name: string
   }
-  order: {
-    perUnitPrice: {
-      eth: string
+  image_url: string
+  last_sale: {
+    total_price: string
+    payment_token: {
+      symbol: 'ETH' | 'WETH'
     }
-    orderType: string
-  } | null
+  }
+  sell_orders: {
+    current_price: string
+    payment_token_contract: {
+      symbol: 'ETH' | 'WETH'
+    }
+  }[]
 }
 
 export type Chain = 'ethereum' | 'polygon'
@@ -311,39 +317,80 @@ export const fetchIsRanked = async (address: string) => {
   return isRankedLoader.load(address) as Promise<boolean>
 }
 
+// const assetLoader = new DataLoader(
+//   async (addressIdPairs: readonly string[]) => {
+//     const query = gql`
+//     query {
+//       ${addressIdPairs.map((addressIdPair) => {
+//         const [address, tokenId] = addressIdPair.split('_')
+//         return `archetype_addr_id_${addressIdPair}:  archetype(archetype: {assetContractAddress: "${address}", tokenId: "${tokenId}"}) {
+//             asset {
+//               displayImageUrl
+//               name
+//               collection {
+//                 name
+//               }
+//             }
+//           }
+//           order_addr_id_${addressIdPair}: orders(makerArchetype: {assetContractAddress: "${address}", tokenId: "${tokenId}"}, sortAscending: false, sortBy: "CREATED_DATE", first: 1, isValid: true, isExpired: false) {
+//             edges {
+//               node {
+//                 perUnitPrice {
+//                   eth
+//                 }
+//                 orderType
+//               }
+//             }
+//           }
+//         `
+//       })}
+//     }
+//   `
+//     const res = await openSeaRequest(query)
+//     return addressIdPairs.map((addressIdPair) => {
+//       if (!res) return null
+//       const archetype = res[`archetype_addr_id_${addressIdPair}`]
+//       const orders = res[`order_addr_id_${addressIdPair}`]
+//       if (!(archetype && orders)) return null
+//       return {
+//         ...archetype.asset,
+//         order: orders.edges[0]?.node,
+//       }
+//     })
+//   },
+//   {
+//     batchScheduleFn: (callback) => setTimeout(callback, 250),
+//     maxBatchSize: 10,
+//   },
+// )
 const assetLoader = new DataLoader(
   async (addressIdPairs: readonly string[]) => {
-    const query = gql`
-    query {
-      ${addressIdPairs.map((addressIdPair) => {
-        const [address, tokenId] = addressIdPair.split('_')
-        return `
-          addr_id_${addressIdPair}:  archetype(archetype: {assetContractAddress: "${address}", tokenId: "${tokenId}"}) {
-            asset {
-              relayId
-              tokenMetadata
-            }
-          }
-        `
-      })}
-    }
-  `
-    const res = await openSeaRequest(query)
+    // Assume all are for the same address for now
+    const address = addressIdPairs[0].split('_')[0]
+    const tokenIds = addressIdPairs.map((pair) => pair.split('_')[1])
+    const res = await fetch(
+      `https://api.opensea.io/api/v1/assets?asset_contract_address=${address}&token_ids=${tokenIds.join(
+        '&token_ids=',
+      )}`,
+    ).then((res) => res.json())
     return addressIdPairs.map((addressIdPair) => {
       if (!res) return null
-      const response = res[`addr_id_${addressIdPair}`]
-      if (!response) return null
-      return response.asset
+      const tokenId = addressIdPair.split('_')[1]
+      const asset = res.assets.find(
+        ({ token_id }: { token_id: string }) => token_id === tokenId,
+      )
+      if (!asset) return null
+      return asset
     })
   },
   {
-    // batchScheduleFn: (callback) => setTimeout(callback, 250),
+    batchScheduleFn: (callback) => setTimeout(callback, 500),
     maxBatchSize: 10,
   },
 )
 
-export const fetchAssetInfo = (address: string, tokenId: number) => {
-  return assetLoader.load(`${address}_${tokenId}`) as Promise<AssetInfo>
+export const fetchAsset = (address: string, tokenId: number) => {
+  return assetLoader.load(`${address}_${tokenId}`) as Promise<Asset>
 }
 
 const userAssetsQuery = gql`

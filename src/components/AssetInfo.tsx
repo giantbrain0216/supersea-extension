@@ -48,7 +48,6 @@ import { selectElement } from '../utils/selector'
 export const HEIGHT = 85
 export const LIST_HEIGHT = 62
 
-const queueRefreshRateLimit = RateLimit(1)
 const replaceImageRateLimit = RateLimit(3)
 
 const RARITY_TYPES = [
