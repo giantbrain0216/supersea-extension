@@ -50,7 +50,7 @@ export const LIST_HEIGHT = 62
 
 const replaceImageRateLimit = RateLimit(3)
 
-const RARITY_TYPES = [
+export const RARITY_TYPES = [
   {
     top: 0.001,
     name: 'Legendary',

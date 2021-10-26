@@ -124,10 +124,12 @@ let injectedReactContainers: ReactDOM.Container[] = []
 const injectReact = (
   content: React.ReactElement,
   target: ReactDOM.Container,
-  callback?: () => void,
+  opts?: { callback?: () => void; autoDestroy?: boolean },
 ) => {
-  injectedReactContainers.push(target)
-  ReactDOM.render(<AppProvider>{content}</AppProvider>, target, callback)
+  if (opts?.autoDestroy !== false) {
+    injectedReactContainers.push(target)
+  }
+  ReactDOM.render(<AppProvider>{content}</AppProvider>, target, opts?.callback)
 }
 
 let cleanupActive = true
@@ -228,7 +230,22 @@ const injectInPageContextScript = () => {
   }
 }
 
+let previouslyRenderedSearchResults: {
+  container: HTMLElement | null
+  collectionSlug: string | null
+  scrollY: number
+} = {
+  container: null,
+  collectionSlug: null,
+  scrollY: 0,
+}
+
 const injectSearchResults = async () => {
+  const collectionSlug = window.location.pathname
+    .split('/')
+    .filter(Boolean)
+    .pop()!
+
   const selectors = await fetchSelectors()
   const container = document.querySelector(
     selectors.searchResults.containerSelector,
@@ -240,14 +257,34 @@ const injectSearchResults = async () => {
     if (collectionMenu) {
       collectionMenu.classList.add('SuperSea--tabActive')
     }
-    const reactContainer = document.createElement('div')
-    container.classList.add('SuperSea__SearchResults')
+
+    let reactContainer: null | HTMLElement = null
+    if (previouslyRenderedSearchResults.collectionSlug === collectionSlug) {
+      reactContainer = previouslyRenderedSearchResults.container!
+    } else {
+      reactContainer = document.createElement('div')
+      previouslyRenderedSearchResults = {
+        container: reactContainer,
+        collectionSlug,
+        scrollY: 0,
+      }
+      reactContainer.classList.add('SuperSea__SearchResults')
+      injectReact(
+        <SearchResults collectionSlug={collectionSlug!} />,
+        reactContainer,
+        { autoDestroy: false },
+      )
+    }
+
     container.replaceWith(reactContainer)
+    window.scrollTo({ top: previouslyRenderedSearchResults.scrollY })
     cleanupActive = false
 
     const messageListener = (event: MessageEvent) => {
-      if (event.data.method === 'SuperSea__Next__routeChangeComplete') {
-        reactContainer.replaceWith(container)
+      if (event.data.method === 'SuperSea__Next__routeChangeStart') {
+        previouslyRenderedSearchResults.scrollY = window.scrollY
+      } else if (event.data.method === 'SuperSea__Next__routeChangeComplete') {
+        reactContainer!.replaceWith(container)
         if (collectionMenu) {
           collectionMenu.classList.remove('SuperSea--tabActive')
         }
@@ -257,15 +294,6 @@ const injectSearchResults = async () => {
     }
 
     window.addEventListener('message', messageListener)
-    const collectionSlug = window.location.pathname
-      .split('/')
-      .filter(Boolean)
-      .pop()
-
-    injectReact(
-      <SearchResults collectionSlug={collectionSlug!} />,
-      reactContainer,
-    )
   }
 }
 

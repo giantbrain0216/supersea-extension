@@ -16,20 +16,26 @@ import { readableEthValue } from '../../utils/ethereum'
 const SearchAsset = ({
   address,
   tokenId,
+  hideAsset,
+  hideUnlisted = false,
 }: {
-  address: string
+  address: string | null
   tokenId: string
+  hideAsset: (hidden: boolean) => void
+  hideUnlisted?: boolean
 }) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const [asset, setAsset] = useState<Asset | null>(null)
   const [imageLoaded, setImageLoaded] = useState(false)
   useEffect(() => {
     ;(async () => {
+      if (!address) return
       const asset = await fetchAsset(address, +tokenId)
-      console.log(asset)
       setAsset(asset)
+      hideAsset(!asset.sell_orders?.length && hideUnlisted)
     })()
-  }, [address, tokenId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address, tokenId, hideUnlisted])
 
   return (
     <Box
@@ -41,6 +47,7 @@ const SearchAsset = ({
       position="relative"
       paddingBottom={ASSET_INFO_HEIGHT}
       ref={containerRef}
+      animation="SuperSea__FadeIn 350ms ease"
     >
       <LinkBox>
         <Box
@@ -167,13 +174,15 @@ const SearchAsset = ({
           )}
         </Box>
       </LinkBox>
-      <AssetInfo
-        address={address}
-        tokenId={tokenId}
-        type="grid"
-        chain="ethereum"
-        container={containerRef.current!}
-      />
+      {asset ? (
+        <AssetInfo
+          address={address!}
+          tokenId={tokenId}
+          type="grid"
+          chain="ethereum"
+          container={containerRef.current!}
+        />
+      ) : null}
     </Box>
   )
 }

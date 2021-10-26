@@ -59,6 +59,7 @@ const REMOTE_ASSET_BASE = 'http://localhost:3000/supersea'
 
 const openSeaSema = new Sema(3)
 const openSeaRateLimit = RateLimit(3)
+const openSeaPublicRateLimit = RateLimit(3)
 
 let selectorsPromise: null | Promise<Selectors> = null
 export const fetchSelectors = () => {
@@ -324,57 +325,12 @@ export const fetchIsRanked = async (address: string) => {
   return isRankedLoader.load(address) as Promise<boolean>
 }
 
-// const assetLoader = new DataLoader(
-//   async (addressIdPairs: readonly string[]) => {
-//     const query = gql`
-//     query {
-//       ${addressIdPairs.map((addressIdPair) => {
-//         const [address, tokenId] = addressIdPair.split('_')
-//         return `archetype_addr_id_${addressIdPair}:  archetype(archetype: {assetContractAddress: "${address}", tokenId: "${tokenId}"}) {
-//             asset {
-//               displayImageUrl
-//               name
-//               collection {
-//                 name
-//               }
-//             }
-//           }
-//           order_addr_id_${addressIdPair}: orders(makerArchetype: {assetContractAddress: "${address}", tokenId: "${tokenId}"}, sortAscending: false, sortBy: "CREATED_DATE", first: 1, isValid: true, isExpired: false) {
-//             edges {
-//               node {
-//                 perUnitPrice {
-//                   eth
-//                 }
-//                 orderType
-//               }
-//             }
-//           }
-//         `
-//       })}
-//     }
-//   `
-//     const res = await openSeaRequest(query)
-//     return addressIdPairs.map((addressIdPair) => {
-//       if (!res) return null
-//       const archetype = res[`archetype_addr_id_${addressIdPair}`]
-//       const orders = res[`order_addr_id_${addressIdPair}`]
-//       if (!(archetype && orders)) return null
-//       return {
-//         ...archetype.asset,
-//         order: orders.edges[0]?.node,
-//       }
-//     })
-//   },
-//   {
-//     batchScheduleFn: (callback) => setTimeout(callback, 250),
-//     maxBatchSize: 10,
-//   },
-// )
 const assetLoader = new DataLoader(
   async (addressIdPairs: readonly string[]) => {
     // Assume all are for the same address for now
     const address = addressIdPairs[0].split('_')[0]
     const tokenIds = addressIdPairs.map((pair) => pair.split('_')[1])
+    await openSeaPublicRateLimit()
     const res = await fetch(
       `https://api.opensea.io/api/v1/assets?asset_contract_address=${address}&token_ids=${tokenIds.join(
         '&token_ids=',
@@ -392,7 +348,7 @@ const assetLoader = new DataLoader(
   },
   {
     batchScheduleFn: (callback) => setTimeout(callback, 500),
-    maxBatchSize: 10,
+    maxBatchSize: 20,
   },
 )
 

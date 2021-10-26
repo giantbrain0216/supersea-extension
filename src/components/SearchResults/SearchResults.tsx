@@ -1,5 +1,14 @@
-import { Box, SimpleGrid, HStack, Text } from '@chakra-ui/react'
-import { useState, useEffect } from 'react'
+import {
+  Box,
+  SimpleGrid,
+  HStack,
+  VStack,
+  Divider,
+  Text,
+  Select,
+} from '@chakra-ui/react'
+import _ from 'lodash'
+import { useState, useEffect, useRef } from 'react'
 import { unstable_batchedUpdates } from 'react-dom'
 import {
   fetchCollectionAddress,
@@ -7,10 +16,48 @@ import {
   Rarities,
 } from '../../utils/api'
 import SearchAsset from './SearchAsset'
+import { HEIGHT as ASSET_INFO_HEIGHT, RARITY_TYPES } from '../AssetInfo'
+import { useInView } from 'react-intersection-observer'
+import ButtonOptions from '../ButtonOptions'
+
+const PLACEHOLDER_TOKENS = _.times(40, (num) => ({
+  iteratorID: num,
+  rank: num,
+}))
+const LOAD_MORE_SCROLL_THRESHOLD = 600
+
+const GridItem = ({
+  renderPlaceholder,
+  renderItem,
+}: {
+  renderPlaceholder: () => React.ReactNode
+  renderItem: (hideAsset: (hidden: boolean) => void) => React.ReactNode
+}) => {
+  const { ref, inView } = useInView({
+    threshold: 0,
+    rootMargin: '500px',
+  })
+  const [hidden, setHidden] = useState(false)
+  if (hidden) return null
+  return (
+    <div ref={ref}>
+      {inView
+        ? renderItem((hidden) => {
+            setHidden(hidden)
+          })
+        : renderPlaceholder()}
+    </div>
+  )
+}
 
 const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
+  const gridRef = useRef<HTMLDivElement | null>(null)
   const [tokens, setTokens] = useState<Rarities['tokens'] | null | undefined>()
   const [address, setAddress] = useState<string | null>(null)
+  const [loadedItems, setLoadedItems] = useState(40)
+  const [statusFilters, setStatusFilters] = useState<'buyNow'[]>([])
+  const [highestRarity, setHighestRarity] = useState('Legendary')
+
   useEffect(() => {
     ;(async () => {
       const address = await fetchCollectionAddress(collectionSlug)
@@ -22,29 +69,123 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
     })()
   }, [collectionSlug])
 
+  useEffect(() => {
+    if (tokens && tokens.length <= loadedItems) return
+    const listener = _.throttle(() => {
+      if (!gridRef.current) return
+      const { bottom } = gridRef.current.getBoundingClientRect()
+      if (bottom - window.innerHeight <= LOAD_MORE_SCROLL_THRESHOLD) {
+        setLoadedItems((items) => items + 20)
+      }
+    }, 200)
+    window.addEventListener('scroll', listener)
+    window.addEventListener('resize', listener)
+    return () => {
+      window.removeEventListener('scroll', listener)
+      window.removeEventListener('resize', listener)
+    }
+  }, [loadedItems, tokens])
+
   return (
-    <HStack width="100%" alignItems="flex-start">
+    <HStack width="100%" alignItems="flex-start" position="relative">
       <Box
         width="340px"
         flex="0 0 340px"
-        height="2500px"
         p="4"
-        background="#303339"
+        pb="8"
+        position="sticky"
+        top="72px"
+        background="#262b2f"
         borderColor="transparent"
         borderWidth="1px"
-        borderColorRight="#151b22"
+        borderRightColor="#151b22"
+        borderBottomColor="#151b22"
       >
-        <Text>Filters</Text>
+        <VStack spacing="8" alignItems="flex-start">
+          <VStack
+            spacing="3"
+            divider={<Divider borderColor="whiteAlpha.200" />}
+            alignItems="flex-start"
+            width="100%"
+          >
+            <Text fontWeight="500">Status</Text>
+            <ButtonOptions
+              width="100%"
+              columns="2"
+              options={[{ name: 'buyNow' as const, label: 'Buy Now' }]}
+              active={statusFilters}
+              onChange={(active) => setStatusFilters(active)}
+            />
+          </VStack>
+          <VStack
+            spacing="3"
+            divider={<Divider borderColor="whiteAlpha.200" />}
+            alignItems="flex-start"
+            width="100%"
+          >
+            <Text fontWeight="500">Highest Rarity</Text>
+            <Select
+              borderColor="transparent"
+              bg="whiteAlpha.200"
+              onChange={(e) => {
+                setHighestRarity(e.target.value)
+              }}
+            >
+              {RARITY_TYPES.map(({ name }) => {
+                return (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                )
+              })}
+            </Select>
+          </VStack>
+        </VStack>
       </Box>
-      <SimpleGrid minChildWidth="175px" spacing="4" px="4" py="4" width="100%">
-        {(tokens && address ? tokens : [])
-          ?.slice(0, 60)
+      <SimpleGrid
+        minChildWidth="175px"
+        spacing="4"
+        px="4"
+        py="4"
+        width="100%"
+        ref={gridRef}
+      >
+        {(tokens && address ? tokens : PLACEHOLDER_TOKENS)
+          ?.filter(({ rank }, _, list) => {
+            const rarityIndex = RARITY_TYPES.findIndex(
+              ({ top }) => rank / list.length <= top,
+            )
+            const highestRarityIndex = RARITY_TYPES.findIndex(
+              ({ name }) => name === highestRarity,
+            )
+            return rarityIndex >= highestRarityIndex
+          })
+          .slice(0, loadedItems)
           .map(({ iteratorID }) => {
             return (
-              <SearchAsset
-                key={iteratorID}
-                address={address!}
-                tokenId={String(iteratorID)}
+              <GridItem
+                key={`${iteratorID}_${statusFilters.join(',')}_${
+                  tokens && address ? 'loaded' : 'loading'
+                }`}
+                renderItem={(hideAsset) => (
+                  <SearchAsset
+                    address={address}
+                    tokenId={String(iteratorID)}
+                    hideAsset={hideAsset}
+                    hideUnlisted={statusFilters.includes('buyNow')}
+                  />
+                )}
+                renderPlaceholder={() => (
+                  <Box
+                    paddingBottom={ASSET_INFO_HEIGHT}
+                    borderRadius="xl"
+                    borderWidth="1px"
+                    borderColor="#303339"
+                  >
+                    <Box css={{ aspectRatio: '1' }} width="100%" />
+                    <Box height="80px" />
+                  </Box>
+                )}
               />
             )
           })}
