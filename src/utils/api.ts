@@ -99,10 +99,17 @@ const openSeaRequest = async (query: any, variables: any = {}) => {
   let res = null
   const headers = (await getOpenSeaHeaders()) as any
   try {
-    res = await request('https://api.opensea.io/graphql/', query, variables, {
-      ...headers,
-      'X-SIGNED-QUERY': 'SuperSea',
+    res = fetch('https://api.opensea.io/graphql/batch/', {
+      headers: {
+        ...headers,
+        'content-type': 'application/json',
+        'X-SIGNED-QUERY': 'SuperSea',
+      },
+      body: JSON.stringify([{ id: 'batchQuery', query: query, variables }]),
+      method: 'POST',
     })
+      .then((res) => res.json())
+      .then((json) => json[0]?.data)
   } catch (err: any) {
     if (err.response && err.response.data) {
       res = err.response.data
@@ -198,7 +205,7 @@ const floorPriceLoader = new DataLoader(
     keys: readonly { address: string; tokenId: string; chain: Chain }[],
   ) => {
     const query = gql`
-			query {
+			query batchQuery {
 				${keys.map(
           ({ address, tokenId, chain }) => `
 				  addr_${address}_${tokenId}:  archetype(archetype: {assetContractAddress: "${address}", tokenId: "${tokenId}", chain: "${
