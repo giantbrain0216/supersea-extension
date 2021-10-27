@@ -30,6 +30,10 @@ export type Selectors = {
   searchResults: {
     menuSelector: string
     containerSelector: string
+    route: {
+      url: string
+      as: string
+    }
   }
 }
 

@@ -54,6 +54,10 @@
   },
   "searchResults": {
     "menuSelector": "*[class*=\"collection__DivContainer\"] ul[class*=\"Menureact__MenuBase\"]",
-    "containerSelector": ".AssetSearchView--main"
+    "containerSelector": ".AssetSearchView--main, .collection--ActivityTabSection",
+    "route": {
+      "url": "/collection?collectionSlug=[COLLECTION_SLUG]&tab=supersea",
+      "as": "/collection/[COLLECTION_SLUG]?tab=supersea"
+    }
   }
 }

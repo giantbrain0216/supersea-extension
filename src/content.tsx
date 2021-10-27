@@ -7,7 +7,7 @@ import BundleVerification from './components/BundleVerification'
 import AssetInfo from './components/AssetInfo'
 import ProfileSummary from './components/ProfileSummary'
 import GlobalStyles from './components/GlobalStyles'
-import { ExtensionConfig, getExtensionConfig } from './utils/extensionConfig'
+import { getExtensionConfig } from './utils/extensionConfig'
 import { fetchGlobalCSS, fetchSelectors } from './utils/api'
 import { selectElement, Selectors } from './utils/selector'
 import SearchResults from './components/SearchResults/SearchResults'
@@ -319,8 +319,14 @@ const injectCollectionMenu = async () => {
           window.postMessage({
             method: 'SuperSea__Navigate',
             params: {
-              url: `/collection?collectionSlug=${collectionSlug}&tab=supersea`,
-              as: `/collection/${collectionSlug}?tab=supersea`,
+              url: selectors.searchResults.route.url.replace(
+                '[COLLECTION_SLUG]',
+                collectionSlug!,
+              ),
+              as: selectors.searchResults.route.as.replace(
+                '[COLLECTION_SLUG]',
+                collectionSlug!,
+              ),
               options: {
                 scroll: false,
               },
