@@ -47,6 +47,7 @@ import { selectElement } from '../utils/selector'
 
 export const HEIGHT = 85
 export const LIST_HEIGHT = 62
+const MEMBERSHIP_ADDRESS = '0x24e047001f0ac15f72689d3f5cd0b0f52b1abdf9'
 
 const replaceImageRateLimit = RateLimit(3)
 
@@ -83,23 +84,29 @@ type Rarity = {
 const RarityBadge = ({
   rarity,
   isSubscriber,
+  isMembershipNFT,
 }: {
   rarity: Rarity | null
   isSubscriber: boolean
+  isMembershipNFT: boolean
 }) => {
-  if (isSubscriber) {
+  if (isSubscriber || isMembershipNFT) {
+    const tooltipLabel = (() => {
+      if (isMembershipNFT) {
+        return "You're all legendary to us <3"
+      }
+      if (rarity) {
+        return `${rarity.type.name}${
+          rarity.type.top !== Infinity ? ` (top ${rarity.type.top * 100}%)` : ''
+        }`
+      }
+
+      return ''
+    })()
     return (
       <Tooltip
-        isDisabled={!rarity}
-        label={
-          rarity
-            ? `${rarity.type.name}${
-                rarity.type.top !== Infinity
-                  ? ` (top ${rarity.type.top * 100}%)`
-                  : ''
-              }`
-            : ''
-        }
+        isDisabled={!(rarity || isMembershipNFT)}
+        label={tooltipLabel}
         size="lg"
         hasArrow
         bg="gray.700"
@@ -145,6 +152,7 @@ const AssetInfo = ({
   const [isAutoImageReplaced, setIsAutoImageReplaced] = useState(false)
 
   const toast = useToast()
+  const isMembershipNFT = MEMBERSHIP_ADDRESS === address
 
   const replaceImage = useCallback(async () => {
     await replaceImageRateLimit()
@@ -261,7 +269,10 @@ const AssetInfo = ({
                 isRanked: true,
                 tokenCount,
                 rank,
-                type: RARITY_TYPES.find(({ top }) => rank / tokenCount <= top)!,
+                type:
+                  rank === 1
+                    ? RARITY_TYPES[0]
+                    : RARITY_TYPES.find(({ top }) => rank / tokenCount <= top)!,
               })
               return
             }
@@ -270,12 +281,21 @@ const AssetInfo = ({
         setRarity(null)
       } else {
         const isRanked = await fetchIsRanked(address)
-        setRarity({
-          isRanked: Boolean(isRanked),
-          tokenCount: 0,
-          rank: 0,
-          type: RARITY_TYPES[RARITY_TYPES.length - 1],
-        })
+        if (isMembershipNFT) {
+          setRarity({
+            isRanked: true,
+            tokenCount: 100,
+            rank: 1,
+            type: RARITY_TYPES[0],
+          })
+        } else {
+          setRarity({
+            isRanked: Boolean(isRanked),
+            tokenCount: 0,
+            rank: 0,
+            type: RARITY_TYPES[RARITY_TYPES.length - 1],
+          })
+        }
       }
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -310,8 +330,12 @@ const AssetInfo = ({
           },
         }}
         bg={useColorModeValue(
-          rarity && isSubscriber ? rarity.type.color.light : 'gray.50',
-          rarity && isSubscriber ? rarity.type.color.dark : 'gray.600',
+          rarity && (isSubscriber || isMembershipNFT)
+            ? rarity.type.color.light
+            : 'gray.50',
+          rarity && (isSubscriber || isMembershipNFT)
+            ? rarity.type.color.dark
+            : 'gray.600',
         )}
         onClick={(e) => {
           if ((e.target as HTMLElement).tagName !== 'A') {
@@ -545,7 +569,11 @@ const AssetInfo = ({
               Rank:
             </Text>
             {rarity !== undefined ? (
-              <RarityBadge isSubscriber={isSubscriber} rarity={rarity} />
+              <RarityBadge
+                isSubscriber={isSubscriber}
+                rarity={rarity}
+                isMembershipNFT={isMembershipNFT}
+              />
             ) : (
               <Spinner ml={1} width={3} height={3} opacity={0.75} />
             )}
