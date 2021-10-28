@@ -2,6 +2,7 @@ import {
   Box,
   SimpleGrid,
   HStack,
+  Flex,
   VStack,
   Divider,
   Text,
@@ -19,6 +20,7 @@ import SearchAsset from './SearchAsset'
 import { HEIGHT as ASSET_INFO_HEIGHT, RARITY_TYPES } from '../AssetInfo'
 import { useInView } from 'react-intersection-observer'
 import ButtonOptions from '../ButtonOptions'
+import Logo from '../Logo'
 
 const PLACEHOLDER_TOKENS = _.times(40, (num) => ({
   iteratorID: num,
@@ -86,13 +88,15 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
     }
   }, [loadedItems, tokens])
 
+  const unranked = tokens === null || tokens?.length === 0
+
   return (
     <HStack width="100%" alignItems="flex-start" position="relative">
       <Box
         width="340px"
         flex="0 0 340px"
         p="4"
-        pb="8"
+        pb="130px"
         position="sticky"
         top="72px"
         background="#262b2f"
@@ -100,6 +104,8 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
         borderWidth="1px"
         borderRightColor="#151b22"
         borderBottomColor="#151b22"
+        borderBottomRightRadius="lg"
+        overflow="hidden"
       >
         <VStack spacing="8" alignItems="flex-start">
           <VStack
@@ -141,55 +147,71 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
             </Select>
           </VStack>
         </VStack>
+        <Logo
+          width="120px"
+          height="120px"
+          opacity="0.1"
+          position="absolute"
+          bottom="-15px"
+          right="-15px"
+        />
       </Box>
-      <SimpleGrid
-        minChildWidth="175px"
-        spacing="4"
-        px="4"
-        py="4"
-        width="100%"
-        ref={gridRef}
-      >
-        {(tokens && address ? tokens : PLACEHOLDER_TOKENS)
-          ?.filter(({ rank }, _, list) => {
-            const rarityIndex = RARITY_TYPES.findIndex(
-              ({ top }) => rank / list.length <= top,
-            )
-            const highestRarityIndex = RARITY_TYPES.findIndex(
-              ({ name }) => name === highestRarity,
-            )
-            return rarityIndex >= highestRarityIndex
-          })
-          .slice(0, loadedItems)
-          .map(({ iteratorID }) => {
-            return (
-              <GridItem
-                key={`${iteratorID}_${statusFilters.join(',')}_${
-                  tokens && address ? 'loaded' : 'loading'
-                }`}
-                renderItem={(hideAsset) => (
-                  <SearchAsset
-                    address={address}
-                    tokenId={String(iteratorID)}
-                    hideAsset={hideAsset}
-                    hideUnlisted={statusFilters.includes('buyNow')}
-                  />
-                )}
-                renderPlaceholder={() => (
-                  <Box
-                    paddingBottom={ASSET_INFO_HEIGHT}
-                    borderRadius="xl"
-                    borderWidth="1px"
-                    borderColor="#303339"
-                  >
-                    <Box css={{ aspectRatio: '1' }} width="100%" />
-                    <Box height="80px" />
-                  </Box>
-                )}
-              />
-            )
-          })}
-      </SimpleGrid>
+      {unranked ? (
+        <Flex width="100%" justifyContent="center" py="16" height="800px">
+          <Text fontSize="2xl" opacity={0.75}>
+            This collection has not been ranked yet
+          </Text>
+        </Flex>
+      ) : (
+        <SimpleGrid
+          minChildWidth="175px"
+          spacing="4"
+          px="4"
+          py="4"
+          width="100%"
+          ref={gridRef}
+        >
+          {(tokens && address ? tokens : PLACEHOLDER_TOKENS)
+            ?.filter(({ rank }, _, list) => {
+              const rarityIndex = RARITY_TYPES.findIndex(
+                ({ top }) => rank / list.length <= top,
+              )
+              const highestRarityIndex = RARITY_TYPES.findIndex(
+                ({ name }) => name === highestRarity,
+              )
+              return rarityIndex >= highestRarityIndex
+            })
+            .slice(0, loadedItems)
+            .map(({ iteratorID }) => {
+              return (
+                <GridItem
+                  key={`${iteratorID}_${statusFilters.join(',')}_${
+                    tokens && address ? 'loaded' : 'loading'
+                  }`}
+                  renderItem={(hideAsset) => (
+                    <SearchAsset
+                      address={address}
+                      tokenId={String(iteratorID)}
+                      hideAsset={hideAsset}
+                      hideUnlisted={statusFilters.includes('buyNow')}
+                    />
+                  )}
+                  renderPlaceholder={() => (
+                    <Box
+                      paddingBottom={ASSET_INFO_HEIGHT}
+                      borderRadius="xl"
+                      borderWidth="1px"
+                      borderColor="#303339"
+                    >
+                      <Box css={{ aspectRatio: '1' }} width="100%" />
+                      <Box height="80px" />
+                    </Box>
+                  )}
+                />
+              )
+            })}
+        </SimpleGrid>
+      )}
     </HStack>
   )
 }
