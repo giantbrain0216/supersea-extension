@@ -1,4 +1,4 @@
-import { Text, HStack } from '@chakra-ui/react'
+import { Text, HStack, useColorModeValue } from '@chakra-ui/react'
 import Logo from './Logo'
 import LockedFeature from './LockedFeature'
 import { useUser } from '../utils/user'
@@ -24,8 +24,16 @@ const CollectionMenuItem = ({
         .filter(Boolean)
         .join(' ')}
     >
-      <Logo width="24px" height="24px" color="white" />
-      <Text fontWeight="600" fontFamily="Poppins, sans-serif;" color="white">
+      <Logo
+        width="24px"
+        height="24px"
+        color={useColorModeValue('black', 'white')}
+      />
+      <Text
+        fontWeight="600"
+        fontFamily="Poppins, sans-serif;"
+        color={useColorModeValue('black', 'white')}
+      >
         Top Ranked
       </Text>
       {isSubscriber ? null : <LockedFeature level="subscriber" />}

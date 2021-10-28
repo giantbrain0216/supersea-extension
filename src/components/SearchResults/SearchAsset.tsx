@@ -7,6 +7,7 @@ import {
   Flex,
   LinkBox,
   LinkOverlay,
+  useColorModeValue,
 } from '@chakra-ui/react'
 import { Asset, fetchAsset } from '../../utils/api'
 import AssetInfo, { HEIGHT as ASSET_INFO_HEIGHT } from '../AssetInfo'
@@ -39,10 +40,10 @@ const SearchAsset = ({
 
   return (
     <Box
-      background="#303339"
+      background={useColorModeValue('white', '#303339')}
       borderRadius="xl"
       borderWidth="1px"
-      borderColor="#151b22"
+      borderColor={useColorModeValue('#e5e8eb', '#151b22')}
       key={tokenId}
       position="relative"
       paddingBottom={ASSET_INFO_HEIGHT}

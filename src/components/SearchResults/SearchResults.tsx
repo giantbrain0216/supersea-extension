@@ -7,6 +7,7 @@ import {
   Divider,
   Text,
   Select,
+  useColorModeValue,
 } from '@chakra-ui/react'
 import _ from 'lodash'
 import { useState, useEffect, useRef } from 'react'
@@ -89,6 +90,7 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
   }, [loadedItems, tokens])
 
   const unranked = tokens === null || tokens?.length === 0
+  const placeholderBorderColor = useColorModeValue('#e5e8eb', '#151b22')
 
   return (
     <HStack width="100%" alignItems="flex-start" position="relative">
@@ -99,18 +101,22 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
         pb="130px"
         position="sticky"
         top="72px"
-        background="#262b2f"
+        background={useColorModeValue('#fbfdff', '#262b2f')}
         borderColor="transparent"
         borderWidth="1px"
-        borderRightColor="#151b22"
-        borderBottomColor="#151b22"
+        borderRightColor={placeholderBorderColor}
+        borderBottomColor={placeholderBorderColor}
         borderBottomRightRadius="lg"
         overflow="hidden"
       >
         <VStack spacing="8" alignItems="flex-start">
           <VStack
             spacing="3"
-            divider={<Divider borderColor="whiteAlpha.200" />}
+            divider={
+              <Divider
+                borderColor={useColorModeValue('gray.300', 'whiteAlpha.200')}
+              />
+            }
             alignItems="flex-start"
             width="100%"
           >
@@ -125,14 +131,18 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
           </VStack>
           <VStack
             spacing="3"
-            divider={<Divider borderColor="whiteAlpha.200" />}
+            divider={
+              <Divider
+                borderColor={useColorModeValue('gray.300', 'whiteAlpha.200')}
+              />
+            }
             alignItems="flex-start"
             width="100%"
           >
             <Text fontWeight="500">Highest Rarity</Text>
             <Select
               borderColor="transparent"
-              bg="whiteAlpha.200"
+              bg={useColorModeValue('gray.100', 'whiteAlpha.200')}
               onChange={(e) => {
                 setHighestRarity(e.target.value)
               }}
@@ -201,7 +211,7 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
                       paddingBottom={ASSET_INFO_HEIGHT}
                       borderRadius="xl"
                       borderWidth="1px"
-                      borderColor="#303339"
+                      borderColor={placeholderBorderColor}
                     >
                       <Box css={{ aspectRatio: '1' }} width="100%" />
                       <Box height="80px" />
