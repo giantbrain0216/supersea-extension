@@ -17,16 +17,13 @@ import {
   IconButton,
   useToast,
   Tag,
-  HStack,
   useColorModeValue,
   Tooltip,
 } from '@chakra-ui/react'
 import { FiMoreHorizontal, FiExternalLink } from 'react-icons/fi'
-import { LockIcon } from '@chakra-ui/icons'
 
 import {
   Chain,
-  fetchAssetInfo,
   fetchFloorPrice,
   fetchIsRanked,
   fetchMetadata,
@@ -51,10 +48,9 @@ import { selectElement } from '../utils/selector'
 export const HEIGHT = 85
 export const LIST_HEIGHT = 62
 
-const queueRefreshRateLimit = RateLimit(1)
 const replaceImageRateLimit = RateLimit(3)
 
-const RARITY_TYPES = [
+export const RARITY_TYPES = [
   {
     top: 0.001,
     name: 'Legendary',
@@ -213,14 +209,8 @@ const AssetInfo = ({
   const queueRefresh = useCallback(async () => {
     if (refreshState === 'QUEUING') return
     setRefreshState('QUEUING')
-    await queueRefreshRateLimit()
-    const assetInfo = await fetchAssetInfo(address, +tokenId)
-    if (!assetInfo) {
-      setRefreshState('FAILED')
-      return
-    }
-    await triggerOpenSeaMetadataRefresh(assetInfo?.relayId)
-    setRefreshState('QUEUED')
+    const success = await triggerOpenSeaMetadataRefresh(address, tokenId)
+    setRefreshState(success ? 'QUEUED' : 'FAILED')
   }, [address, refreshState, tokenId])
 
   const autoQueueRefresh = useCallback(() => {
