@@ -1,5 +1,5 @@
 import React from 'react'
-import { SimpleGrid, Button } from '@chakra-ui/react'
+import { SimpleGrid, Button, useColorModeValue } from '@chakra-ui/react'
 
 const ButtonOptions = <
   Options extends {
@@ -16,6 +16,7 @@ const ButtonOptions = <
   active: Options[number]['name'][]
   onChange: (active: Options[number]['name'][]) => void
 } & Omit<React.ComponentProps<typeof SimpleGrid>, 'onChange'>) => {
+  const inactiveBg = useColorModeValue('gray.100', 'whiteAlpha.200')
   return (
     <SimpleGrid spacing="3" {...rest}>
       {options.map(({ name, label }) => {
@@ -23,7 +24,9 @@ const ButtonOptions = <
         return (
           <Button
             key={name}
-            bg={isActive ? 'blue.500' : undefined}
+            fontWeight="400"
+            color={isActive ? 'white' : undefined}
+            bg={isActive ? 'blue.500' : inactiveBg}
             _hover={{ bg: isActive ? 'blue.400' : undefined }}
             _active={{ bg: isActive ? 'blue.300' : undefined }}
             onClick={() => {
