@@ -60,8 +60,8 @@ export const BuyNowButtonUI = ({
           ),
         }}
         boxShadow={useColorModeValue(
-          '0 1px 2px rgba(0, 0, 0, 0.1)',
-          '0 1px 2px rgba(0, 0, 0, 0.15)',
+          '0 1px 2px rgba(0, 0, 0, 0.1), inset 0 0 0 1px rgba(255, 255, 255, 0.2)',
+          '0 1px 2px rgba(0, 0, 0, 0.15), inset 0 0 0 1px rgba(255, 255, 255, 0.2)',
         )}
         aria-label="Buy Now"
         onClick={() => {
