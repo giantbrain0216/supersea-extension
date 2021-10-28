@@ -60,8 +60,8 @@ export const BuyNowButtonUI = ({
           ),
         }}
         boxShadow={useColorModeValue(
-          '0 1px 2px rgba(0, 0, 0, 0.1), inset 0 0 0 1px rgba(255, 255, 255, 0.2)',
-          '0 1px 2px rgba(0, 0, 0, 0.15), inset 0 0 0 1px rgba(255, 255, 255, 0.2)',
+          '0 1px 2px rgba(0, 0, 0, 0.1), inset 0 0 0 1px rgba(255, 255, 255, 0.15)',
+          '0 1px 2px rgba(0, 0, 0, 0.15), inset 0 0 0 1px rgba(255, 255, 255, 0.15)',
         )}
         aria-label="Buy Now"
         onClick={() => {
@@ -122,7 +122,9 @@ const BuyNowButton = (
 ) => {
   const [config] = useExtensionConfig()
   const user = useUser()
-  if (config === null || user === null || !user.isFounder) return null
+  const isAccountPage = window.location.pathname.split('/')[1] === 'account'
+  if (config === null || user === null || !user.isFounder || isAccountPage)
+    return null
   return <BuyNowButtonUI {...props} active={config.quickBuyEnabled} />
 }
 
