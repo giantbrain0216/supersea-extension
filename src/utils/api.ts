@@ -54,9 +54,7 @@ export type Asset = {
 
 export type Chain = 'ethereum' | 'polygon'
 
-// const REMOTE_ASSET_BASE = 'https://nonfungible.tools/supersea'
-const REMOTE_ASSET_BASE =
-  'https://non-fungible-website-git-collection-tab-minmax.vercel.app/supersea'
+const REMOTE_ASSET_BASE = 'https://nonfungible.tools/supersea'
 
 const openSeaSema = new Sema(3)
 const openSeaRateLimit = RateLimit(3)
