@@ -7,11 +7,14 @@ import lastKnownInjectionSelectors from '../assets/lastKnownInjectionSelectors.j
 import { Selectors } from './selector'
 
 // Parcel will inline the string
-const fs = require('fs')
-const lastKnownStyleOverrides: string = fs.readFileSync(
-  './src/assets/lastKnownStyleOverrides.css',
-  'utf-8',
-)
+let lastKnownStyleOverrides = ''
+try {
+  const fs = require('fs')
+  lastKnownStyleOverrides = fs.readFileSync(
+    './src/assets/lastKnownStyleOverrides.css',
+    'utf-8',
+  )
+} catch (err) {}
 
 const OPENSEA_SHARED_CONTRACT_ADDRESSES = [
   '0x495f947276749ce646f68ac8c248420045cb7b5e',
