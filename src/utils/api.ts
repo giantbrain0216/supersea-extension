@@ -6,6 +6,13 @@ import { User } from './user'
 import lastKnownInjectionSelectors from '../assets/lastKnownInjectionSelectors.json'
 import { Selectors } from './selector'
 
+// Parcel will inline the string
+const fs = require('fs')
+const lastKnownStyleOverrides: string = fs.readFileSync(
+  './src/assets/lastKnownStyleOverrides.css',
+  'utf-8',
+)
+
 const OPENSEA_SHARED_CONTRACT_ADDRESSES = [
   '0x495f947276749ce646f68ac8c248420045cb7b5e',
   '0x2953399124f0cbb46d2cbacd8a89cf0599974963',
@@ -79,10 +86,23 @@ export const fetchSelectors = () => {
   return selectorsPromise
 }
 
+let cssPromise: null | Promise<string> = null
 export const fetchGlobalCSS = () => {
-  return fetch(`${REMOTE_ASSET_BASE}/styleOverrides.css`).then((res) =>
-    res.text(),
-  )
+  if (!cssPromise) {
+    // Fallback to last known css if request takes more than 5 seconds
+    cssPromise = Promise.race<Promise<string>>([
+      fetch(`${REMOTE_ASSET_BASE}/styleOverrides.css`).then((res) =>
+        res.text(),
+      ),
+      new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('timeout')), 5000)
+      }),
+    ]).catch((err) => {
+      console.error(err)
+      return lastKnownStyleOverrides
+    })
+  }
+  return cssPromise
 }
 
 const getOpenSeaHeaders = () => {
