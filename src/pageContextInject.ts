@@ -46,13 +46,13 @@ import { OrderSide } from 'opensea-js/lib/types'
     window.next.router.events.on('routeChangeComplete', (url: string) => {
       window.postMessage({
         method: 'SuperSea__Next__routeChangeComplete',
-        params: { url: url },
+        params: { url: url, scrollY: window.scrollY },
       })
     })
     window.next.router.events.on('routeChangeStart', (url: string) => {
       window.postMessage({
         method: 'SuperSea__Next__routeChangeStart',
-        params: { url: url },
+        params: { url: url, scrollY: window.scrollY },
       })
     })
   }

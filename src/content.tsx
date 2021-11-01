@@ -282,7 +282,7 @@ const injectSearchResults = async () => {
 
     const messageListener = (event: MessageEvent) => {
       if (event.data.method === 'SuperSea__Next__routeChangeStart') {
-        previouslyRenderedSearchResults.scrollY = window.scrollY
+        previouslyRenderedSearchResults.scrollY = event.data.params.scrollY
       } else if (event.data.method === 'SuperSea__Next__routeChangeComplete') {
         reactContainer!.replaceWith(container)
         if (collectionMenu) {
