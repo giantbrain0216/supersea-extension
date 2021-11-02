@@ -6,6 +6,16 @@ import { User } from './user'
 import lastKnownInjectionSelectors from '../assets/lastKnownInjectionSelectors.json'
 import { Selectors } from './selector'
 
+// Parcel will inline the string
+let lastKnownStyleOverrides = ''
+try {
+  const fs = require('fs')
+  lastKnownStyleOverrides = fs.readFileSync(
+    './src/assets/lastKnownStyleOverrides.css',
+    'utf-8',
+  )
+} catch (err) {}
+
 const OPENSEA_SHARED_CONTRACT_ADDRESSES = [
   '0x495f947276749ce646f68ac8c248420045cb7b5e',
   '0x2953399124f0cbb46d2cbacd8a89cf0599974963',
@@ -32,12 +42,33 @@ export type AssetInfo = {
   tokenMetadata: string
 }
 
+export type Asset = {
+  name: string
+  collection: {
+    name: string
+  }
+  image_url: string
+  last_sale: {
+    total_price: string
+    payment_token: {
+      symbol: 'ETH' | 'WETH'
+    }
+  }
+  sell_orders: {
+    current_price: string
+    payment_token_contract: {
+      symbol: 'ETH' | 'WETH'
+    }
+  }[]
+}
+
 export type Chain = 'ethereum' | 'polygon'
 
 const REMOTE_ASSET_BASE = 'https://nonfungible.tools/supersea'
 
 const openSeaSema = new Sema(3)
 const openSeaRateLimit = RateLimit(3)
+const openSeaPublicRateLimit = RateLimit(3)
 
 let selectorsPromise: null | Promise<Selectors> = null
 export const fetchSelectors = () => {
@@ -58,10 +89,23 @@ export const fetchSelectors = () => {
   return selectorsPromise
 }
 
+let cssPromise: null | Promise<string> = null
 export const fetchGlobalCSS = () => {
-  return fetch(`${REMOTE_ASSET_BASE}/styleOverrides.css`).then((res) =>
-    res.text(),
-  )
+  if (!cssPromise) {
+    // Fallback to last known css if request takes more than 5 seconds
+    cssPromise = Promise.race<Promise<string>>([
+      fetch(`${REMOTE_ASSET_BASE}/styleOverrides.css`).then((res) =>
+        res.text(),
+      ),
+      new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('timeout')), 5000)
+      }),
+    ]).catch((err) => {
+      console.error(err)
+      return lastKnownStyleOverrides
+    })
+  }
+  return cssPromise
 }
 
 const getOpenSeaHeaders = () => {
@@ -305,37 +349,33 @@ export const fetchIsRanked = async (address: string) => {
 
 const assetLoader = new DataLoader(
   async (addressIdPairs: readonly string[]) => {
-    const query = gql`
-    query {
-      ${addressIdPairs.map((addressIdPair) => {
-        const [address, tokenId] = addressIdPair.split('_')
-        return `
-          addr_id_${addressIdPair}:  archetype(archetype: {assetContractAddress: "${address}", tokenId: "${tokenId}"}) {
-            asset {
-              relayId
-              tokenMetadata
-            }
-          }
-        `
-      })}
-    }
-  `
-    const res = await openSeaRequest(query)
+    // Assume all are for the same address for now
+    const address = addressIdPairs[0].split('_')[0]
+    const tokenIds = addressIdPairs.map((pair) => pair.split('_')[1])
+    await openSeaPublicRateLimit()
+    const res = await fetch(
+      `https://api.opensea.io/api/v1/assets?asset_contract_address=${address}&token_ids=${tokenIds.join(
+        '&token_ids=',
+      )}`,
+    ).then((res) => res.json())
     return addressIdPairs.map((addressIdPair) => {
       if (!res) return null
-      const response = res[`addr_id_${addressIdPair}`]
-      if (!response) return null
-      return response.asset
+      const tokenId = addressIdPair.split('_')[1]
+      const asset = res.assets.find(
+        ({ token_id }: { token_id: string }) => token_id === tokenId,
+      )
+      if (!asset) return null
+      return asset
     })
   },
   {
-    // batchScheduleFn: (callback) => setTimeout(callback, 250),
-    maxBatchSize: 10,
+    batchScheduleFn: (callback) => setTimeout(callback, 500),
+    maxBatchSize: 20,
   },
 )
 
-export const fetchAssetInfo = (address: string, tokenId: number) => {
-  return assetLoader.load(`${address}_${tokenId}`) as Promise<AssetInfo>
+export const fetchAsset = (address: string, tokenId: number) => {
+  return assetLoader.load(`${address}_${tokenId}`) as Promise<Asset>
 }
 
 const userAssetsQuery = gql`
@@ -430,8 +470,17 @@ export const fetchMetadata = async (
       return data
     }
   } catch (err) {}
-  const assetInfo = await fetchAssetInfo(contractAddress, tokenId)
-  return fetch(assetInfo?.tokenMetadata).then((res) => res.json())
+  const query = gql`
+    query {
+      archetype(archetype: {assetContractAddress: "${contractAddress}", tokenId: "${tokenId}"}) {
+        asset {
+          tokenMetadata
+        }
+      }
+    }
+  `
+  const res = await openSeaRequest(query)
+  return res.archetype.asset.tokenMetadata
 }
 
 export const fetchMetadataUriWithOpenSeaFallback = async (
@@ -440,22 +489,74 @@ export const fetchMetadataUriWithOpenSeaFallback = async (
 ) => {
   const contractTokenUri = await fetchMetadataUri(address, tokenId)
   if (!contractTokenUri) {
-    const assetInfo = await fetchAssetInfo(address, tokenId)
-    return assetInfo?.tokenMetadata
+    const query = gql`
+      query {
+        archetype(archetype: {assetContractAddress: "${address}", tokenId: "${tokenId}"}) {
+          asset {
+            tokenMetadata
+          }
+        }
+      }
+    `
+    const res = await openSeaRequest(query)
+    return res.archetype.asset.tokenMetadata
   }
   return contractTokenUri.replace(/^ipfs:\/\//, 'https://ipfs.io/ipfs/')
 }
 
-const openSeaRefreshMetaDataMutation = gql`
-  mutation RefreshMetadata($asset: AssetRelayID!) {
-    assets {
-      refresh(asset: $asset)
-    }
-  }
-`
+const refreshLoader = new DataLoader(
+  async (addressIdPairs: readonly string[]) => {
+    const query = gql`
+      query {
+        ${addressIdPairs.map((addressIdPair) => {
+          const [address, tokenId] = addressIdPair.split('_')
+          return `
+            addr_id_${addressIdPair}:  archetype(archetype: {assetContractAddress: "${address}", tokenId: "${tokenId}"}) {
+              asset {
+                relayId
+              }
+            }
+          `
+        })}
+      }
+    `
+    const res = await openSeaRequest(query)
+    const mutation = gql`
+      mutation {
+        assets {
+          ${addressIdPairs.map((addressIdPair) => {
+            const response = res[`addr_id_${addressIdPair}`]
+            const relayId = response.asset.relayId
+            return `
+              addr_id_${addressIdPair}: refresh(asset: "${relayId}") 
+            `
+          })}
+        }
+      }
+    `
+    const mutationRes = await openSeaRequest(mutation)
+    return addressIdPairs.map((addressIdPair) => {
+      if (!mutationRes) return null
+      const response = mutationRes.assets[`addr_id_${addressIdPair}`]
+      return response
+    })
+  },
+  {
+    batchScheduleFn: (callback) => setTimeout(callback, 1500),
+    maxBatchSize: 10,
+  },
+)
 
-export const triggerOpenSeaMetadataRefresh = async (assetId: string) => {
-  return openSeaRequest(openSeaRefreshMetaDataMutation, {
-    asset: assetId,
-  })
+export const triggerOpenSeaMetadataRefresh = async (
+  address: string,
+  tokenId: string,
+) => {
+  return refreshLoader.load(`${address}_${tokenId}`) as Promise<Boolean>
+}
+
+export const fetchCollectionAddress = async (slug: string) => {
+  const data = await fetch(
+    `https://api.opensea.io/api/v1/assets?limit=1&collection=${slug}`,
+  ).then((res) => res.json())
+  return data.assets[0].asset_contract.address
 }
