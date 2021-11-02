@@ -368,7 +368,9 @@ const AssetInfo = ({
             right="-16px"
             transform="translateY(-50%)"
             color={useColorModeValue(
-              rarity && isSubscriber ? 'white' : 'gray.300',
+              rarity && (isSubscriber || isMembershipNFT)
+                ? 'white'
+                : 'gray.300',
               'white',
             )}
           />
