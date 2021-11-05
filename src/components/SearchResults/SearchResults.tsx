@@ -3,14 +3,11 @@ import {
   SimpleGrid,
   HStack,
   Flex,
-  VStack,
-  Divider,
   Text,
-  Select,
   useColorModeValue,
 } from '@chakra-ui/react'
 import _ from 'lodash'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { unstable_batchedUpdates } from 'react-dom'
 import {
   fetchCollectionAddress,
@@ -20,8 +17,8 @@ import {
 import SearchAsset from './SearchAsset'
 import { HEIGHT as ASSET_INFO_HEIGHT, RARITY_TYPES } from '../AssetInfo'
 import { useInView } from 'react-intersection-observer'
-import ButtonOptions from '../ButtonOptions'
-import Logo from '../Logo'
+import Filters, { FiltersType } from './Filters'
+import { weiToEth } from '../../utils/ethereum'
 
 const PLACEHOLDER_TOKENS = _.times(40, (num) => ({
   iteratorID: num,
@@ -32,15 +29,23 @@ const LOAD_MORE_SCROLL_THRESHOLD = 600
 const GridItem = ({
   renderPlaceholder,
   renderItem,
+  onItemHidden,
 }: {
   renderPlaceholder: () => React.ReactNode
   renderItem: (hideAsset: (hidden: boolean) => void) => React.ReactNode
+  onItemHidden: () => void
 }) => {
   const { ref, inView } = useInView({
     threshold: 0,
     rootMargin: '500px',
   })
   const [hidden, setHidden] = useState(false)
+
+  useEffect(() => {
+    if (hidden) onItemHidden()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hidden])
+
   if (hidden) return null
   return (
     <div ref={ref}>
@@ -58,8 +63,24 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
   const [tokens, setTokens] = useState<Rarities['tokens'] | null | undefined>()
   const [address, setAddress] = useState<string | null>(null)
   const [loadedItems, setLoadedItems] = useState(40)
-  const [statusFilters, setStatusFilters] = useState<'buyNow'[]>([])
-  const [highestRarity, setHighestRarity] = useState('Legendary')
+  const [filters, setFilters] = useState<FiltersType>({
+    status: [],
+    priceRange: [undefined, undefined],
+    highestRarity: 'Legendary',
+  })
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const throttledLoadMore = useCallback(
+    _.throttle(() => {
+      if (tokens && tokens.length <= loadedItems) return
+      if (!gridRef.current) return
+      const { bottom } = gridRef.current.getBoundingClientRect()
+      if (bottom - window.innerHeight <= LOAD_MORE_SCROLL_THRESHOLD) {
+        setLoadedItems((items) => items + 20)
+      }
+    }),
+    [tokens, loadedItems],
+  )
 
   useEffect(() => {
     ;(async () => {
@@ -74,98 +95,32 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
 
   useEffect(() => {
     if (tokens && tokens.length <= loadedItems) return
-    const listener = _.throttle(() => {
-      if (!gridRef.current) return
-      const { bottom } = gridRef.current.getBoundingClientRect()
-      if (bottom - window.innerHeight <= LOAD_MORE_SCROLL_THRESHOLD) {
-        setLoadedItems((items) => items + 20)
-      }
-    }, 200)
-    window.addEventListener('scroll', listener)
-    window.addEventListener('resize', listener)
+    window.addEventListener('scroll', throttledLoadMore)
+    window.addEventListener('resize', throttledLoadMore)
     return () => {
-      window.removeEventListener('scroll', listener)
-      window.removeEventListener('resize', listener)
+      window.removeEventListener('scroll', throttledLoadMore)
+      window.removeEventListener('resize', throttledLoadMore)
     }
-  }, [loadedItems, tokens])
+  }, [throttledLoadMore, tokens, loadedItems])
 
   const unranked = tokens === null || tokens?.length === 0
   const placeholderBorderColor = useColorModeValue('#e5e8eb', '#151b22')
 
   return (
     <HStack width="100%" alignItems="flex-start" position="relative">
-      <Box
-        width="340px"
-        flex="0 0 340px"
-        p="4"
-        pb="130px"
-        position="sticky"
-        top="72px"
-        background={useColorModeValue('#fbfdff', '#262b2f')}
-        borderColor="transparent"
-        borderWidth="1px"
-        borderRightColor={placeholderBorderColor}
-        borderBottomColor={placeholderBorderColor}
-        borderBottomRightRadius="lg"
-        overflow="hidden"
-      >
-        <VStack spacing="8" alignItems="flex-start">
-          <VStack
-            spacing="3"
-            divider={
-              <Divider
-                borderColor={useColorModeValue('gray.300', 'whiteAlpha.200')}
-              />
-            }
-            alignItems="flex-start"
-            width="100%"
-          >
-            <Text fontWeight="500">Status</Text>
-            <ButtonOptions
-              width="100%"
-              columns="2"
-              options={[{ name: 'buyNow' as const, label: 'Buy Now' }]}
-              active={statusFilters}
-              onChange={(active) => setStatusFilters(active)}
-            />
-          </VStack>
-          <VStack
-            spacing="3"
-            divider={
-              <Divider
-                borderColor={useColorModeValue('gray.300', 'whiteAlpha.200')}
-              />
-            }
-            alignItems="flex-start"
-            width="100%"
-          >
-            <Text fontWeight="500">Highest Rarity</Text>
-            <Select
-              borderColor="transparent"
-              bg={useColorModeValue('gray.100', 'whiteAlpha.200')}
-              onChange={(e) => {
-                setHighestRarity(e.target.value)
-              }}
-            >
-              {RARITY_TYPES.map(({ name }) => {
-                return (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                )
-              })}
-            </Select>
-          </VStack>
-        </VStack>
-        <Logo
-          width="120px"
-          height="120px"
-          opacity="0.1"
-          position="absolute"
-          bottom="-15px"
-          right="-15px"
-        />
-      </Box>
+      <Filters
+        filters={filters}
+        onApplyFilters={(appliedFilters) => {
+          setFilters(appliedFilters)
+          setLoadedItems(40)
+        }}
+        showSearchProgress={
+          filters.status.length > 0 ||
+          filters.priceRange[0] !== undefined ||
+          filters.priceRange[1] !== undefined
+        }
+        searchNumber={loadedItems}
+      />
       {unranked ? (
         <Flex width="100%" justifyContent="center" py="16" height="800px">
           <Text fontSize="2xl" opacity={0.75}>
@@ -187,7 +142,7 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
                 ({ top }) => rank / list.length <= top,
               )
               const highestRarityIndex = RARITY_TYPES.findIndex(
-                ({ name }) => name === highestRarity,
+                ({ name }) => name === filters.highestRarity,
               )
               return rarityIndex >= highestRarityIndex
             })
@@ -195,15 +150,38 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
             .map(({ iteratorID }) => {
               return (
                 <GridItem
-                  key={`${iteratorID}_${statusFilters.join(',')}_${
+                  key={`${iteratorID}_${filters.status.join(
+                    ',',
+                  )}_${filters.priceRange.join(',')}_${
                     tokens && address ? 'loaded' : 'loading'
                   }`}
+                  onItemHidden={throttledLoadMore}
                   renderItem={(hideAsset) => (
                     <SearchAsset
                       address={address}
                       tokenId={String(iteratorID)}
                       hideAsset={hideAsset}
-                      hideUnlisted={statusFilters.includes('buyNow')}
+                      shouldHide={(asset) => {
+                        if (
+                          filters.status.includes('buyNow') &&
+                          !asset.sell_orders?.length
+                        ) {
+                          return true
+                        }
+
+                        if (filters.priceRange[0] || filters.priceRange[1]) {
+                          const matchesPriceRange =
+                            asset.sell_orders?.length &&
+                            weiToEth(+asset.sell_orders[0].current_price) >=
+                              (filters.priceRange[0] || 0) &&
+                            weiToEth(+asset.sell_orders[0].current_price) <=
+                              (filters.priceRange[1] || 0)
+
+                          if (!matchesPriceRange) return true
+                        }
+
+                        return false
+                      }}
                     />
                   )}
                   renderPlaceholder={() => (

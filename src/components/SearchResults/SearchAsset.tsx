@@ -18,12 +18,12 @@ const SearchAsset = ({
   address,
   tokenId,
   hideAsset,
-  hideUnlisted = false,
+  shouldHide,
 }: {
   address: string | null
   tokenId: string
   hideAsset: (hidden: boolean) => void
-  hideUnlisted?: boolean
+  shouldHide: (asset: Asset) => boolean
 }) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const [asset, setAsset] = useState<Asset | null>(null)
@@ -32,11 +32,14 @@ const SearchAsset = ({
     ;(async () => {
       if (!address) return
       const asset = await fetchAsset(address, +tokenId)
-      setAsset(asset)
-      hideAsset(!asset.sell_orders?.length && hideUnlisted)
+      if (shouldHide(asset)) {
+        hideAsset(true)
+      } else {
+        setAsset(asset)
+      }
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address, tokenId, hideUnlisted])
+  }, [address, tokenId])
 
   return (
     <Box
