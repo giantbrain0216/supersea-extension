@@ -31,6 +31,20 @@ export type Rarities = {
   }[]
 }
 
+export type Trait = {
+  _id: {
+    name: string | number
+    group: string
+  }
+  sum: number
+}
+
+export type RaritiesWithTraits = Rarities & {
+  rarityTable: {
+    traits: Trait[]
+  }
+}
+
 export type Floor = {
   price: number
   floorSearchUrl: string
@@ -311,8 +325,37 @@ const rarityLoader = new DataLoader(
   },
 )
 
+const rarityTraitQuery = gql`
+  query RarityQuery($address: String!, $input: TokenInputType) {
+    contract(address: $address) {
+      contractAddress
+      tokenCount
+      rarityTable
+      tokens(input: $input) {
+        iteratorID
+        rank
+      }
+    }
+  }
+`
+
 export const fetchRarities = async (address: string) => {
   return rarityLoader.load(address) as Promise<Rarities>
+}
+
+export const fetchRaritiesWithTraits = async (
+  address: string,
+  traits: { key: string; value: string }[],
+) => {
+  const res = await nonFungibleRequest(rarityTraitQuery, {
+    address,
+    input: traits.length
+      ? {
+          traits,
+        }
+      : {},
+  })
+  return res.contract as RaritiesWithTraits
 }
 
 const isRankedQuery = gql`

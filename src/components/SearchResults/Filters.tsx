@@ -19,20 +19,25 @@ import ButtonOptions from '../ButtonOptions'
 import Logo from '../Logo'
 import EthereumIcon from '../EthereumIcon'
 import { motion } from 'framer-motion'
+import { Trait } from '../../utils/api'
+import TraitSelect from './TraitSelect'
 
 export type FiltersType = {
   status: 'buyNow'[]
   priceRange: [number | undefined, number | undefined]
   highestRarity: typeof RARITY_TYPES[number]['name']
+  traits: string[]
 }
 
 const Filters = ({
   filters,
+  allTraits,
   onApplyFilters,
   showSearchProgress,
   searchNumber,
 }: {
   filters: FiltersType
+  allTraits: Trait[]
   onApplyFilters: (filters: FiltersType) => void
   showSearchProgress: boolean
   searchNumber: number
@@ -85,7 +90,6 @@ const Filters = ({
       borderRightColor={useColorModeValue('#e5e8eb', '#151b22')}
       borderBottomColor={useColorModeValue('#e5e8eb', '#151b22')}
       borderBottomRightRadius="lg"
-      overflow="hidden"
       color={useColorModeValue('black', 'white')}
     >
       <VStack spacing="8" alignItems="flex-start">
@@ -193,15 +197,47 @@ const Filters = ({
             </HStack>
           </VStack>
         </VStack>
+        <VStack
+          spacing="3"
+          alignItems="flex-start"
+          divider={
+            <Divider
+              borderColor={useColorModeValue('gray.300', 'whiteAlpha.200')}
+            />
+          }
+          width="100%"
+        >
+          <Text fontWeight="500">Traits</Text>
+          <TraitSelect
+            traits={allTraits}
+            onChange={(traits) => {
+              onApplyFilters({
+                ...filters,
+                traits: traits,
+              })
+            }}
+            value={filters.traits}
+          />
+        </VStack>
       </VStack>
-      <Logo
+      <Box
+        position="absolute"
+        bottom="0"
+        right="0"
+        overflow="hidden"
+        borderBottomRightRadius="lg"
         width="120px"
         height="120px"
-        opacity="0.1"
-        position="absolute"
-        bottom="-15px"
-        right="-15px"
-      />
+      >
+        <Logo
+          width="100%"
+          height="100%"
+          opacity="0.1"
+          position="absolute"
+          bottom="-15px"
+          right="-15px"
+        />
+      </Box>
       <motion.div
         style={{
           display: showSearchProgress ? 'block' : 'none',
