@@ -1,6 +1,7 @@
 import _ from 'lodash'
 import { useMemo, useState } from 'react'
 import { CheckIcon } from '@chakra-ui/icons'
+import { FaListUl } from 'react-icons/fa'
 import {
   Input,
   useColorModeValue,
@@ -49,6 +50,7 @@ const TraitSelect = ({
   const groupHeaderBg = useColorModeValue('blackAlpha.50', 'blackAlpha.500')
   const highlightBg = useColorModeValue('blackAlpha.100', 'whiteAlpha.300')
   const hoverBg = useColorModeValue('blackAlpha.50', 'whiteAlpha.200')
+  const iconColor = useColorModeValue('gray.400', 'gray.500')
 
   return (
     <Box
@@ -116,7 +118,7 @@ const TraitSelect = ({
           }}
           renderGroupHeader={(name) => {
             return (
-              <Text
+              <Flex
                 py="2"
                 px="3"
                 textTransform="uppercase"
@@ -124,8 +126,19 @@ const TraitSelect = ({
                 fontSize="12px"
                 bg={groupHeaderBg}
               >
-                Type: {name}
-              </Text>
+                <Box mr={2} my={'auto'} color={iconColor}>
+                  <FaListUl
+                    color={iconColor}
+                    width="12px"
+                    height="auto"
+                    display="inline-block"
+
+                    // mt="-2px"
+                    // ml="5px"
+                  />
+                </Box>
+                <Text>{name}</Text>
+              </Flex>
             ) as any
           }}
           renderOption={(optionsProps, optionData, optionSnapshot) => {
@@ -135,6 +148,7 @@ const TraitSelect = ({
                 {...(optionsProps as any)}
                 py="2"
                 px="3"
+                pl={'5'}
                 textAlign="left"
                 justifyContent="space-between"
                 ali
@@ -155,7 +169,7 @@ const TraitSelect = ({
                       height="auto"
                       display="inline-block"
                       mt="-2px"
-                      ml="5px"
+                      ml="2"
                     />
                   ) : null}
                 </Text>
