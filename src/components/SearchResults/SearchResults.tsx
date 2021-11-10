@@ -135,7 +135,7 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
       )
       return rarityIndex >= highestRarityIndex
     })
-    .slice(0, loadedItems)
+    .slice(370, 370 + loadedItems)
 
   return (
     <HStack width="100%" alignItems="flex-start" position="relative">
@@ -185,7 +185,9 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
                     shouldHide={(asset) => {
                       if (
                         filters.status.includes('buyNow') &&
-                        !asset.sell_orders?.length
+                        (!asset.sell_orders?.length ||
+                          asset.sell_orders[0].payment_token_contract.symbol ===
+                            'WETH')
                       ) {
                         return true
                       }

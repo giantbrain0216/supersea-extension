@@ -148,6 +148,7 @@ const SearchAsset = ({
                     </Text>
                     <Flex fontSize="14px" fontWeight="600" alignItems="center">
                       <EthereumIcon
+                        mt="-1px"
                         wrapped={
                           asset.sell_orders[0].payment_token_contract.symbol ===
                           'WETH'
