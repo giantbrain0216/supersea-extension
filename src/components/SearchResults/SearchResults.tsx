@@ -135,7 +135,7 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
       )
       return rarityIndex >= highestRarityIndex
     })
-    .slice(370, 370 + loadedItems)
+    .slice(0, loadedItems)
 
   return (
     <HStack width="100%" alignItems="flex-start" position="relative">

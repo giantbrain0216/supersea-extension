@@ -132,9 +132,6 @@ const TraitSelect = ({
                     width="12px"
                     height="auto"
                     display="inline-block"
-
-                    // mt="-2px"
-                    // ml="5px"
                   />
                 </Box>
                 <Text>{name}</Text>
@@ -151,7 +148,6 @@ const TraitSelect = ({
                 pl={'5'}
                 textAlign="left"
                 justifyContent="space-between"
-                ali
                 bg={optionSnapshot.highlighted ? highlightBg : undefined}
                 width="100%"
                 fontSize="15px"
