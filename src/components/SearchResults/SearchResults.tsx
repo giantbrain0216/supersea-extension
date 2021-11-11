@@ -22,11 +22,11 @@ import { HEIGHT as ASSET_INFO_HEIGHT, RARITY_TYPES } from '../AssetInfo'
 import { useInView } from 'react-intersection-observer'
 import Filters, { FiltersType } from './Filters'
 import { weiToEth } from '../../utils/ethereum'
-import { VALUE_DIVIDER } from './TraitSelect'
 
 const PLACEHOLDER_TOKENS = _.times(40, (num) => ({
   iteratorID: num,
   rank: num,
+  placeholder: true,
 }))
 const LOAD_MORE_SCROLL_THRESHOLD = 600
 
@@ -77,20 +77,21 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
 
   useEffect(() => {
     ;(async () => {
-      unstable_batchedUpdates(() => {
-        setTokens(undefined)
-        setLoadedItems(40)
-      })
-      const address = await fetchCollectionAddress(collectionSlug)
+      let fetchedAddress = ''
+      if (!address) {
+        fetchedAddress = await fetchCollectionAddress(collectionSlug)
+      }
       const rarities = await fetchRaritiesWithTraits(
-        address,
+        address || fetchedAddress,
         filters.traits.map((val) => {
-          const [key, value] = val.split(VALUE_DIVIDER)
-          return { key, value }
+          const { groupName, value } = JSON.parse(val)
+          return { key: groupName, value }
         }),
       )
       unstable_batchedUpdates(() => {
-        setAddress(address)
+        if (fetchedAddress) {
+          setAddress(fetchedAddress)
+        }
         setTokens(rarities ? rarities.tokens : null)
         setTokenCount(rarities.tokenCount)
         if (rarities) {
@@ -108,24 +109,23 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
         }
       })
     })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [collectionSlug, filters.traits])
 
   // Tokens filtered with data that we have _before_ fetching the asset
-  const preFilteredTokens = useMemo(
-    () =>
-      (tokens && address ? tokens : PLACEHOLDER_TOKENS)
-        ?.filter(({ rank }, _) => {
-          const rarityIndex = RARITY_TYPES.findIndex(
-            ({ top }) => rank / tokenCount <= top,
-          )
-          const highestRarityIndex = RARITY_TYPES.findIndex(
-            ({ name }) => name === filters.highestRarity,
-          )
-          return rarityIndex >= highestRarityIndex
-        })
-        .slice(0, loadedItems),
-    [address, filters.highestRarity, loadedItems, tokenCount, tokens],
-  )
+  const preFilteredTokens = (tokens && address ? tokens : PLACEHOLDER_TOKENS)
+    ?.filter(({ rank }) => {
+      const rarityIndex = RARITY_TYPES.findIndex(
+        ({ top }) => rank / tokenCount <= top,
+      )
+      const highestRarityIndex = RARITY_TYPES.findIndex(
+        ({ name }) => name === filters.highestRarity,
+      )
+      return rarityIndex >= highestRarityIndex
+    })
+    .slice(0, loadedItems) as (Rarities['tokens'][number] & {
+    placeholder: boolean
+  })[]
 
   useEffect(() => {
     // Load assets
@@ -138,22 +138,29 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
       100,
       { leading: false },
     )
-    preFilteredTokens.forEach(async ({ iteratorID }) => {
-      if (assetMap[iteratorID] || loadingAssetMapRef.current[iteratorID]) return
+    preFilteredTokens.forEach(async ({ iteratorID, placeholder }) => {
+      if (
+        assetMap[iteratorID] ||
+        loadingAssetMapRef.current[iteratorID] ||
+        placeholder
+      ) {
+        return
+      }
       loadingAssetMapRef.current[iteratorID] = true
       const asset = await fetchAsset(address, iteratorID)
       updateBatch[iteratorID] = asset
       batchUpdate()
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preFilteredTokens, address])
+  }, [address, filters.highestRarity, loadedItems, tokenCount, tokens])
 
   // Tokens filtered with data that we have _after_ fetching the asset
   const postFilteredTokens = preFilteredTokens
-    .map(({ iteratorID }) => {
+    .map(({ iteratorID, placeholder }) => {
       return {
         tokenId: String(iteratorID),
-        asset: assetMap[iteratorID],
+        asset: placeholder ? null : assetMap[iteratorID],
+        placeholder,
       }
     })
     .filter(({ asset }) => {
@@ -198,6 +205,11 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
   ])
 
   const placeholderBorderColor = useColorModeValue('#e5e8eb', '#151b22')
+  console.log({
+    postFilteredTokens,
+    preFilteredTokens,
+    tokens,
+  })
 
   return (
     <HStack width="100%" alignItems="flex-start" position="relative">
@@ -205,8 +217,13 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
         filters={filters}
         allTraits={allTraits}
         onApplyFilters={(appliedFilters) => {
-          setFilters(appliedFilters)
-          setLoadedItems(40)
+          unstable_batchedUpdates(() => {
+            setFilters(appliedFilters)
+            setLoadedItems(40)
+            if (appliedFilters.traits !== filters.traits) {
+              setTokens(undefined)
+            }
+          })
         }}
         showSearchProgress={
           filters.status.length > 0 ||
@@ -232,10 +249,10 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
           width="100%"
           ref={gridRef}
         >
-          {postFilteredTokens.map(({ tokenId, asset }) => {
+          {postFilteredTokens.map(({ tokenId, asset, placeholder }) => {
             return (
               <GridItem
-                key={tokenId}
+                key={`${tokenId}${placeholder ? '_placeholder' : ''}`}
                 renderItem={() => (
                   <SearchAsset
                     address={address}

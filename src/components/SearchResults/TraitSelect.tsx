@@ -15,8 +15,6 @@ import {
 import SelectSearch from 'react-select-search'
 import { Trait } from '../../utils/api'
 
-export const VALUE_DIVIDER = '__SUPERSEA__'
-
 const TraitSelect = ({
   traits,
   value,
@@ -37,8 +35,8 @@ const TraitSelect = ({
           .sort((a, b) => b.count - a.count)
           .map(({ value, count }) => {
             return {
-              name: value,
-              value: `${groupName}${VALUE_DIVIDER}${value}${VALUE_DIVIDER}${count}`,
+              name: String(value),
+              value: JSON.stringify({ groupName, value, count }),
             }
           }),
       }
@@ -138,7 +136,7 @@ const TraitSelect = ({
             ) as any
           }}
           renderOption={(optionsProps, optionData, optionSnapshot) => {
-            const [, name, sum] = optionData.value.split(VALUE_DIVIDER)
+            const { value, count } = JSON.parse(optionData.value)
             return (
               <Flex
                 {...(optionsProps as any)}
@@ -157,7 +155,7 @@ const TraitSelect = ({
                 as="button"
               >
                 <Text>
-                  {name}
+                  {value}
                   {optionSnapshot.selected ? (
                     <CheckIcon
                       width="12px"
@@ -168,7 +166,7 @@ const TraitSelect = ({
                     />
                   ) : null}
                 </Text>
-                <Text opacity={0.5}>{sum}</Text>
+                <Text opacity={0.5}>{count}</Text>
               </Flex>
             )
           }}
@@ -176,7 +174,7 @@ const TraitSelect = ({
       </Box>
       <Flex flexWrap="wrap" py="3">
         {value.map((val) => {
-          const [group, name] = val.split(VALUE_DIVIDER)
+          const { groupName, name } = JSON.parse(val)
           return (
             <Tag key={val} mr="2" mb="2" size="lg" fontSize="sm">
               <Box py="6px" pr="1">
@@ -187,7 +185,7 @@ const TraitSelect = ({
                   opacity={0.5}
                   mb="1px"
                 >
-                  {group}
+                  {groupName}
                 </Text>
                 <TagLabel>{name}</TagLabel>
               </Box>
