@@ -65,14 +65,16 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const throttledLoadMore = useCallback(
     _.throttle(() => {
-      if (tokens && tokens.length <= loadedItems) return
       if (!gridRef.current) return
       const { bottom } = gridRef.current.getBoundingClientRect()
-      if (bottom - window.innerHeight <= LOAD_MORE_SCROLL_THRESHOLD) {
+      if (
+        bottom > 0 &&
+        bottom - window.innerHeight <= LOAD_MORE_SCROLL_THRESHOLD
+      ) {
         setLoadedItems((items) => items + 20)
       }
-    }),
-    [tokens, loadedItems],
+    }, 250),
+    [],
   )
 
   useEffect(() => {
@@ -197,19 +199,19 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
     }
   }, [throttledLoadMore, tokens, loadedItems])
 
-  useEffect(throttledLoadMore, [
+  useEffect(() => {
+    if (tokens && tokens.length <= loadedItems) return
+    throttledLoadMore()
+  }, [
     throttledLoadMore,
     assetMap,
     filters.priceRange,
     filters.status,
+    tokens,
+    loadedItems,
   ])
 
   const placeholderBorderColor = useColorModeValue('#e5e8eb', '#151b22')
-  console.log({
-    postFilteredTokens,
-    preFilteredTokens,
-    tokens,
-  })
 
   return (
     <HStack width="100%" alignItems="flex-start" position="relative">
