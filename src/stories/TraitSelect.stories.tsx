@@ -26,46 +26,34 @@ export const Default = Template.bind({})
 Default.args = {
   traits: [
     {
-      _id: {
-        name: 'White Scout',
-        group: 'Hat',
-      },
-      sum: 15,
+      value: 'White Scout',
+      trait_type: 'Hat',
+      count: 15,
     },
     {
-      _id: {
-        name: 'Pink Steak Toaster',
-        group: 'Hat',
-      },
-      sum: 5,
+      value: 'Pink Steak Toaster',
+      trait_type: 'Hat',
+      count: 5,
     },
     {
-      _id: {
-        name: 'White Yakuza',
-        group: 'Shirt',
-      },
-      sum: 52,
+      value: 'White Yakuza',
+      trait_type: 'Shirt',
+      count: 52,
     },
     {
-      _id: {
-        name: 'Red Scuba',
-        group: 'Shirt',
-      },
-      sum: 31,
+      value: 'Red Scuba',
+      trait_type: 'Shirt',
+      count: 31,
     },
     {
-      _id: {
-        name: 'Bruiser 1',
-        group: 'Tier',
-      },
-      sum: 25,
+      value: 'Bruiser 1',
+      trait_type: 'Tier',
+      count: 25,
     },
     {
-      _id: {
-        name: 'Bigwig 2',
-        group: 'Tier',
-      },
-      sum: 7,
+      value: 'Bigwig 2',
+      trait_type: 'Tier',
+      count: 7,
     },
   ],
 }

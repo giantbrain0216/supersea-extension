@@ -94,7 +94,17 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
         setTokens(rarities ? rarities.tokens : null)
         setTokenCount(rarities.tokenCount)
         if (rarities) {
-          setAllTraits(rarities.rarityTable.traits)
+          const groupVariants = _.groupBy(rarities.traits, 'trait_type')
+          setAllTraits(
+            rarities.traits.filter(({ trait_type }) => {
+              return (
+                !rarities.rankingOptions.excludeTraits.includes(trait_type) &&
+                // Filter out trait types that have more variations than half the collection size,
+                // since it likely won't be very interesting to filter by and clogs up the select list
+                groupVariants[trait_type].length < rarities.tokenCount * 0.5
+              )
+            }),
+          )
         }
       })
     })()
@@ -187,7 +197,6 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
     filters.status,
   ])
 
-  const unranked = tokens === null || tokens?.length === 0
   const placeholderBorderColor = useColorModeValue('#e5e8eb', '#151b22')
 
   return (
@@ -206,10 +215,12 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
         }
         searchNumber={loadedItems}
       />
-      {unranked ? (
+      {tokens === null || tokens?.length === 0 ? (
         <Flex width="100%" justifyContent="center" py="16" height="800px">
           <Text fontSize="2xl" opacity={0.75}>
-            This collection has not been ranked yet
+            {filters.traits.length
+              ? 'No items matching filters available'
+              : 'This collection has not been ranked yet'}
           </Text>
         </Flex>
       ) : (

@@ -32,17 +32,16 @@ export type Rarities = {
 }
 
 export type Trait = {
-  _id: {
-    name: string | number
-    group: string
-  }
-  sum: number
+  count: number
+  trait_type: string
+  value: string
 }
 
 export type RaritiesWithTraits = Rarities & {
-  rarityTable: {
-    traits: Trait[]
+  rankingOptions: {
+    excludeTraits: string[]
   }
+  traits: Trait[]
 }
 
 export type Floor = {
@@ -334,7 +333,14 @@ const rarityTraitQuery = gql`
     contract(address: $address) {
       contractAddress
       tokenCount
-      rarityTable
+      traits {
+        count
+        trait_type
+        value
+      }
+      rankingOptions {
+        excludeTraits
+      }
       tokens(input: $input) {
         iteratorID
         rank

@@ -28,22 +28,21 @@ const TraitSelect = ({
 }) => {
   const [focused, setFocused] = useState(false)
   const options = useMemo(() => {
-    return _.map(_.groupBy(traits, '_id.group'), (items, groupName) => {
+    return _.map(_.groupBy(traits, 'trait_type'), (items, groupName) => {
       return {
         name: groupName,
         type: 'group',
 
         items: items
-          .filter(({ _id }) => typeof _id.name === 'string')
-          .sort((a, b) => b.sum - a.sum)
-          .map(({ _id, sum }) => {
+          .sort((a, b) => b.count - a.count)
+          .map(({ value, count }) => {
             return {
-              name: _id.name,
-              value: `${groupName}${VALUE_DIVIDER}${_id.name}${VALUE_DIVIDER}${sum}`,
+              name: value,
+              value: `${groupName}${VALUE_DIVIDER}${value}${VALUE_DIVIDER}${count}`,
             }
           }),
       }
-    }).filter(({ items }) => items.length)
+    })
   }, [traits])
 
   const inputBorder = useColorModeValue('blackAlpha.300', 'whiteAlpha.300')
