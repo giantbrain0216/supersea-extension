@@ -57,6 +57,10 @@ export type AssetInfo = {
 }
 
 export type Asset = {
+  token_id: string
+  asset_contract: {
+    address: string
+  }
   name: string
   collection: {
     name: string

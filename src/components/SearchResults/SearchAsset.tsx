@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   Box,
   Image,
@@ -9,7 +9,7 @@ import {
   LinkOverlay,
   useColorModeValue,
 } from '@chakra-ui/react'
-import { Asset, fetchAsset } from '../../utils/api'
+import { Asset } from '../../utils/api'
 import AssetInfo, { HEIGHT as ASSET_INFO_HEIGHT } from '../AssetInfo'
 import EthereumIcon from '../EthereumIcon'
 import { readableEthValue } from '../../utils/ethereum'
@@ -17,30 +17,14 @@ import { readableEthValue } from '../../utils/ethereum'
 const SearchAsset = ({
   address,
   tokenId,
-  hideAsset,
-  shouldHide,
+  asset,
 }: {
   address: string | null
   tokenId: string
-  hideAsset: (hidden: boolean) => void
-  shouldHide: (asset: Asset) => boolean
+  asset: Asset
 }) => {
   const containerRef = useRef<HTMLDivElement>(null)
-  const [asset, setAsset] = useState<Asset | null>(null)
   const [imageLoaded, setImageLoaded] = useState(false)
-  useEffect(() => {
-    ;(async () => {
-      if (!address) return
-      const asset = await fetchAsset(address, +tokenId)
-      if (shouldHide(asset)) {
-        hideAsset(true)
-      } else {
-        setAsset(asset)
-      }
-    })()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address, tokenId])
-
   return (
     <Box
       background={useColorModeValue('white', '#303339')}

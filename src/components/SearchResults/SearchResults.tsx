@@ -7,9 +7,11 @@ import {
   useColorModeValue,
 } from '@chakra-ui/react'
 import _ from 'lodash'
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { unstable_batchedUpdates } from 'react-dom'
 import {
+  Asset,
+  fetchAsset,
   fetchCollectionAddress,
   fetchRaritiesWithTraits,
   Rarities,
@@ -31,33 +33,16 @@ const LOAD_MORE_SCROLL_THRESHOLD = 600
 const GridItem = ({
   renderPlaceholder,
   renderItem,
-  onItemHidden,
 }: {
   renderPlaceholder: () => React.ReactNode
-  renderItem: (hideAsset: (hidden: boolean) => void) => React.ReactNode
-  onItemHidden: () => void
+  renderItem: () => React.ReactNode
 }) => {
   const { ref, inView } = useInView({
     threshold: 0,
     rootMargin: '500px',
   })
-  const [hidden, setHidden] = useState(false)
 
-  useEffect(() => {
-    if (hidden) onItemHidden()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hidden])
-
-  if (hidden) return null
-  return (
-    <div ref={ref}>
-      {inView
-        ? renderItem((hidden) => {
-            setHidden(hidden)
-          })
-        : renderPlaceholder()}
-    </div>
-  )
+  return <div ref={ref}>{inView ? renderItem() : renderPlaceholder()}</div>
 }
 
 const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
@@ -66,6 +51,9 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
   const [tokens, setTokens] = useState<Rarities['tokens'] | null | undefined>()
   const [address, setAddress] = useState<string | null>(null)
   const [loadedItems, setLoadedItems] = useState(40)
+  const [assetMap, setAssetMap] = useState<Record<string, Asset>>({})
+
+  const loadingAssetMapRef = useRef<Record<string, boolean>>({})
   const [allTraits, setAllTraits] = useState<Trait[]>([])
   const [filters, setFilters] = useState<FiltersType>({
     status: [],
@@ -112,6 +100,76 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
     })()
   }, [collectionSlug, filters.traits])
 
+  // Tokens filtered with data that we have _before_ fetching the asset
+  const preFilteredTokens = useMemo(
+    () =>
+      (tokens && address ? tokens : PLACEHOLDER_TOKENS)
+        ?.filter(({ rank }, _) => {
+          const rarityIndex = RARITY_TYPES.findIndex(
+            ({ top }) => rank / tokenCount <= top,
+          )
+          const highestRarityIndex = RARITY_TYPES.findIndex(
+            ({ name }) => name === filters.highestRarity,
+          )
+          return rarityIndex >= highestRarityIndex
+        })
+        .slice(0, loadedItems),
+    [address, filters.highestRarity, loadedItems, tokenCount, tokens],
+  )
+
+  useEffect(() => {
+    // Load assets
+    if (!address) return
+    const updateBatch: typeof assetMap = {}
+    const batchUpdate = _.throttle(
+      () => {
+        setAssetMap((assetMap) => ({ ...assetMap, ...updateBatch }))
+      },
+      100,
+      { leading: false },
+    )
+    preFilteredTokens.forEach(async ({ iteratorID }) => {
+      if (assetMap[iteratorID] || loadingAssetMapRef.current[iteratorID]) return
+      loadingAssetMapRef.current[iteratorID] = true
+      const asset = await fetchAsset(address, iteratorID)
+      updateBatch[iteratorID] = asset
+      batchUpdate()
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preFilteredTokens, address])
+
+  // Tokens filtered with data that we have _after_ fetching the asset
+  const postFilteredTokens = preFilteredTokens
+    .map(({ iteratorID }) => {
+      return {
+        tokenId: String(iteratorID),
+        asset: assetMap[iteratorID],
+      }
+    })
+    .filter(({ asset }) => {
+      if (!asset) return true
+      if (
+        filters.status.includes('buyNow') &&
+        (!asset.sell_orders?.length ||
+          asset.sell_orders[0].payment_token_contract.symbol === 'WETH')
+      ) {
+        return false
+      }
+
+      if (filters.priceRange[0] || filters.priceRange[1]) {
+        const matchesPriceRange =
+          asset.sell_orders?.length &&
+          weiToEth(+asset.sell_orders[0].current_price) >=
+            (filters.priceRange[0] || 0) &&
+          weiToEth(+asset.sell_orders[0].current_price) <=
+            (filters.priceRange[1] || 0)
+
+        if (!matchesPriceRange) return false
+      }
+
+      return true
+    })
+
   useEffect(() => {
     if (tokens && tokens.length <= loadedItems) return
     window.addEventListener('scroll', throttledLoadMore)
@@ -122,20 +180,15 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
     }
   }, [throttledLoadMore, tokens, loadedItems])
 
+  useEffect(throttledLoadMore, [
+    throttledLoadMore,
+    assetMap,
+    filters.priceRange,
+    filters.status,
+  ])
+
   const unranked = tokens === null || tokens?.length === 0
   const placeholderBorderColor = useColorModeValue('#e5e8eb', '#151b22')
-
-  const renderedTokens = (tokens && address ? tokens : PLACEHOLDER_TOKENS)
-    ?.filter(({ rank }, _) => {
-      const rarityIndex = RARITY_TYPES.findIndex(
-        ({ top }) => rank / tokenCount <= top,
-      )
-      const highestRarityIndex = RARITY_TYPES.findIndex(
-        ({ name }) => name === filters.highestRarity,
-      )
-      return rarityIndex >= highestRarityIndex
-    })
-    .slice(0, loadedItems)
 
   return (
     <HStack width="100%" alignItems="flex-start" position="relative">
@@ -168,43 +221,15 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
           width="100%"
           ref={gridRef}
         >
-          {renderedTokens.map(({ iteratorID }) => {
+          {postFilteredTokens.map(({ tokenId, asset }) => {
             return (
               <GridItem
-                key={`${iteratorID}_${filters.status.join(
-                  ',',
-                )}_${filters.priceRange.join(',')}_${
-                  tokens && address ? 'loaded' : 'loading'
-                }`}
-                onItemHidden={throttledLoadMore}
-                renderItem={(hideAsset) => (
+                key={tokenId}
+                renderItem={() => (
                   <SearchAsset
                     address={address}
-                    tokenId={String(iteratorID)}
-                    hideAsset={hideAsset}
-                    shouldHide={(asset) => {
-                      if (
-                        filters.status.includes('buyNow') &&
-                        (!asset.sell_orders?.length ||
-                          asset.sell_orders[0].payment_token_contract.symbol ===
-                            'WETH')
-                      ) {
-                        return true
-                      }
-
-                      if (filters.priceRange[0] || filters.priceRange[1]) {
-                        const matchesPriceRange =
-                          asset.sell_orders?.length &&
-                          weiToEth(+asset.sell_orders[0].current_price) >=
-                            (filters.priceRange[0] || 0) &&
-                          weiToEth(+asset.sell_orders[0].current_price) <=
-                            (filters.priceRange[1] || 0)
-
-                        if (!matchesPriceRange) return true
-                      }
-
-                      return false
-                    }}
+                    tokenId={tokenId}
+                    asset={asset}
                   />
                 )}
                 renderPlaceholder={() => (
@@ -221,10 +246,10 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
               />
             )
           })}
-          {renderedTokens.length < 10
-            ? _.times(10 - renderedTokens.length, (i) => {
+          {postFilteredTokens.length < 10
+            ? _.times(10 - postFilteredTokens.length, (i) => {
                 return (
-                  <Box paddingBottom={ASSET_INFO_HEIGHT}>
+                  <Box paddingBottom={ASSET_INFO_HEIGHT} key={i}>
                     <Box css={{ aspectRatio: '1' }} width="100%" />
                     <Box height="80px" />
                   </Box>
