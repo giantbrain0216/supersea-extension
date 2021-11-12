@@ -56,7 +56,7 @@ const SearchAsset = ({
           />
           {asset ? (
             <Image
-              src={asset.image_url}
+              src={asset.image_url || asset.asset_contract.image_url}
               width="100%"
               height="100%"
               className="SuperSea__Image"
