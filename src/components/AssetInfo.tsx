@@ -93,12 +93,22 @@ const RarityBadge = ({
   if (isSubscriber || isMembershipNFT) {
     const tooltipLabel = (() => {
       if (isMembershipNFT) {
-        return "You're all legendary to us <3"
+        return <Text my="0">You're all legendary to us &lt;3</Text>
       }
       if (rarity) {
-        return `${rarity.type.name}${
-          rarity.type.top !== Infinity ? ` (top ${rarity.type.top * 100}%)` : ''
-        }`
+        return (
+          <Box>
+            <Text my="0">
+              {rarity.type.name}
+              {rarity.type.top !== Infinity
+                ? ` (top ${rarity.type.top * 100}%)`
+                : ' (bottom 50%)'}
+            </Text>
+            <Text opacity="0.5" my="0" mt="1">
+              #{rarity.rank} / {rarity.tokenCount}
+            </Text>
+          </Box>
+        )
       }
 
       return ''
