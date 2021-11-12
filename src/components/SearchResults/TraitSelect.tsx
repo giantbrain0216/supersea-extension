@@ -174,7 +174,7 @@ const TraitSelect = ({
       </Box>
       <Flex flexWrap="wrap" py="3">
         {value.map((val) => {
-          const { groupName, name } = JSON.parse(val)
+          const { groupName, value: name } = JSON.parse(val)
           return (
             <Tag key={val} mr="2" mb="2" size="lg" fontSize="sm">
               <Box py="6px" pr="1">
