@@ -519,10 +519,13 @@ const AssetInfo = ({
                 <MenuItem
                   isDisabled={chain === 'polygon'}
                   onClick={async () => {
-                    let metadataUri = await fetchMetadataUriWithOpenSeaFallback(
-                      address,
-                      +tokenId,
-                    )
+                    let metadataUri = null
+                    try {
+                      metadataUri = await fetchMetadataUriWithOpenSeaFallback(
+                        address,
+                        +tokenId,
+                      )
+                    } catch (err) {}
                     if (!metadataUri) {
                       toast({
                         duration: 3000,
