@@ -367,22 +367,15 @@ const AssetInfo = ({
           zIndex={0}
         >
           <Logo
+            flipped
             position="absolute"
-            opacity={useColorModeValue(
-              rarity ? 0.4 : 0.35,
-              rarity ? 0.15 : 0.1,
-            )}
-            width={type === 'list' ? '70px' : '120px'}
-            height={type === 'list' ? '70px' : '120px'}
+            opacity={rarity && (isSubscriber || isMembershipNFT) ? 0.15 : 0.1}
+            width={type === 'list' ? '42px' : '60px'}
+            height={type === 'list' ? '42px' : '60px'}
             top="50%"
-            right="-16px"
+            right="6px"
             transform="translateY(-50%)"
-            color={useColorModeValue(
-              rarity && (isSubscriber || isMembershipNFT)
-                ? 'white'
-                : 'gray.300',
-              'white',
-            )}
+            color={useColorModeValue('black', 'white')}
           />
           <Box position="absolute" bottom="2" right="2">
             <RefreshIndicator state={refreshState} />
