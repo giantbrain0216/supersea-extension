@@ -21,6 +21,7 @@ Default.args = {
     status: [],
     priceRange: [undefined, undefined],
     highestRarity: 'Legendary',
+    traits: [],
   },
   showSearchProgress: false,
   searchNumber: 0,

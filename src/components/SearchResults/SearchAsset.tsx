@@ -21,7 +21,7 @@ const SearchAsset = ({
 }: {
   address: string | null
   tokenId: string
-  asset: Asset
+  asset: Asset | null
 }) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const [imageLoaded, setImageLoaded] = useState(false)
