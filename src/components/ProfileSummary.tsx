@@ -86,12 +86,13 @@ const ProfileSummary = ({
         overflow="hidden"
       >
         <Logo
+          flipped
           position="absolute"
           opacity={0.35}
-          width="120px"
-          height="120px"
+          width="60px"
+          height="60px"
           top="50%"
-          right="-16px"
+          right="8px"
           transform="translateY(-50%)"
         />
         {active ? (

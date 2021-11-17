@@ -18,7 +18,7 @@ import { FaGithub } from 'react-icons/fa'
 import { ReactComponent as DiscordSvg } from '../../assets/discord.svg'
 import { ReactComponent as OpenSeaSvg } from '../../assets/opensea.svg'
 import { ReactComponent as EtherscanSvg } from '../../assets/etherscan.svg'
-import { ReactComponent as LogoSvg } from '../../assets/logo.svg'
+import { ReactComponent as LogoSvg } from '../../assets/logo-with-text.svg'
 import QuickBuyToggle from './QuickBuyToggle'
 import GlobalToggle from './GlobalToggle'
 import { useExtensionConfig } from '../../utils/extensionConfig'
@@ -63,6 +63,7 @@ const Popup = () => {
 
   return (
     <Box
+      bg="#323E48"
       width="400px"
       fontSize="16px"
       maxHeight="550px"
@@ -75,32 +76,19 @@ const Popup = () => {
           width: '6px',
         },
         '&::-webkit-scrollbar-thumb': {
-          background: 'rgba(0, 0, 0, 0.3)',
+          background: 'rgba(0, 0, 0, 0.225)',
           borderRadius: '24px',
         },
       }}
     >
       <Box px="4">
-        <Box
-          borderRadius="full"
-          background="white"
-          width="60px"
-          height="60px"
-          borderWidth="5px"
-          borderColor="blue.500"
-          position="relative"
-          my="4"
-        >
-          <Icon
-            as={LogoSvg}
-            position="absolute"
-            top="-5px"
-            left="-5px"
-            color="blue.500"
-            width="60px"
-            height="60px"
-          />
-        </Box>
+        <Icon
+          as={LogoSvg}
+          color="blue.500"
+          width="auto"
+          height="40px"
+          my="24px"
+        />
         <Text pr="5" opacity={0.9}>
           SuperSea improves OpenSea by injecting extra components into the
           website. Look for the whale logo to see what we've added!
@@ -153,7 +141,7 @@ const Popup = () => {
         alignItems="center"
         justifyContent="space-between"
         mt="8"
-        bg="gray.900"
+        bg="blackAlpha.200"
         py="1"
         px="4"
       >
