@@ -54,23 +54,27 @@ const replaceImageRateLimit = RateLimit(3)
 export const RARITY_TYPES = [
   {
     top: 0.001,
-    name: 'Legendary',
+    name: 'Legendary' as const,
     color: { light: 'orange.200', dark: 'orange.500' },
   },
   {
     top: 0.01,
-    name: 'Epic',
+    name: 'Epic' as const,
     color: { light: 'purple.200', dark: 'purple.500' },
   },
-  { top: 0.1, name: 'Rare', color: { light: 'blue.200', dark: 'blue.500' } },
+  {
+    top: 0.1,
+    name: 'Rare' as const,
+    color: { light: 'blue.200', dark: 'blue.500' },
+  },
   {
     top: 0.5,
-    name: 'Uncommon',
+    name: 'Uncommon' as const,
     color: { light: 'green.200', dark: 'green.500' },
   },
   {
     top: Infinity,
-    name: 'Common',
+    name: 'Common' as const,
     color: { light: 'gray.200', dark: 'gray.500' },
   },
 ]

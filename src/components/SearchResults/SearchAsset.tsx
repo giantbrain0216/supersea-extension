@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   Box,
   Image,
@@ -9,7 +9,7 @@ import {
   LinkOverlay,
   useColorModeValue,
 } from '@chakra-ui/react'
-import { Asset, fetchAsset } from '../../utils/api'
+import { Asset } from '../../utils/api'
 import AssetInfo, { HEIGHT as ASSET_INFO_HEIGHT } from '../AssetInfo'
 import EthereumIcon from '../EthereumIcon'
 import { readableEthValue } from '../../utils/ethereum'
@@ -17,27 +17,14 @@ import { readableEthValue } from '../../utils/ethereum'
 const SearchAsset = ({
   address,
   tokenId,
-  hideAsset,
-  hideUnlisted = false,
+  asset,
 }: {
   address: string | null
   tokenId: string
-  hideAsset: (hidden: boolean) => void
-  hideUnlisted?: boolean
+  asset: Asset | null
 }) => {
   const containerRef = useRef<HTMLDivElement>(null)
-  const [asset, setAsset] = useState<Asset | null>(null)
   const [imageLoaded, setImageLoaded] = useState(false)
-  useEffect(() => {
-    ;(async () => {
-      if (!address) return
-      const asset = await fetchAsset(address, +tokenId)
-      setAsset(asset)
-      hideAsset(!asset.sell_orders?.length && hideUnlisted)
-    })()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address, tokenId, hideUnlisted])
-
   return (
     <Box
       background={useColorModeValue('white', '#303339')}
@@ -69,7 +56,7 @@ const SearchAsset = ({
           />
           {asset ? (
             <Image
-              src={asset.image_url}
+              src={asset.image_url || asset.asset_contract.image_url}
               width="100%"
               height="100%"
               className="SuperSea__Image"
@@ -145,6 +132,7 @@ const SearchAsset = ({
                     </Text>
                     <Flex fontSize="14px" fontWeight="600" alignItems="center">
                       <EthereumIcon
+                        mt="-1px"
                         wrapped={
                           asset.sell_orders[0].payment_token_contract.symbol ===
                           'WETH'
