@@ -93,12 +93,22 @@ const RarityBadge = ({
   if (isSubscriber || isMembershipNFT) {
     const tooltipLabel = (() => {
       if (isMembershipNFT) {
-        return "You're all legendary to us <3"
+        return <Text my="0">You're all legendary to us &lt;3</Text>
       }
       if (rarity) {
-        return `${rarity.type.name}${
-          rarity.type.top !== Infinity ? ` (top ${rarity.type.top * 100}%)` : ''
-        }`
+        return (
+          <Box>
+            <Text my="0">
+              {rarity.type.name}
+              {rarity.type.top !== Infinity
+                ? ` (top ${rarity.type.top * 100}%)`
+                : ' (bottom 50%)'}
+            </Text>
+            <Text opacity="0.5" my="0" mt="1">
+              #{rarity.rank} / {rarity.tokenCount}
+            </Text>
+          </Box>
+        )
       }
 
       return ''
@@ -357,22 +367,15 @@ const AssetInfo = ({
           zIndex={0}
         >
           <Logo
+            flipped
             position="absolute"
-            opacity={useColorModeValue(
-              rarity ? 0.4 : 0.35,
-              rarity ? 0.15 : 0.1,
-            )}
-            width={type === 'list' ? '70px' : '120px'}
-            height={type === 'list' ? '70px' : '120px'}
+            opacity={rarity && (isSubscriber || isMembershipNFT) ? 0.15 : 0.1}
+            width={type === 'list' ? '42px' : '60px'}
+            height={type === 'list' ? '42px' : '60px'}
             top="50%"
-            right="-16px"
+            right="6px"
             transform="translateY(-50%)"
-            color={useColorModeValue(
-              rarity && (isSubscriber || isMembershipNFT)
-                ? 'white'
-                : 'gray.300',
-              'white',
-            )}
+            color={useColorModeValue('black', 'white')}
           />
           <Box position="absolute" bottom="2" right="2">
             <RefreshIndicator state={refreshState} />
@@ -497,10 +500,13 @@ const AssetInfo = ({
                 <MenuItem
                   isDisabled={chain === 'polygon'}
                   onClick={async () => {
-                    let metadataUri = await fetchMetadataUriWithOpenSeaFallback(
-                      address,
-                      +tokenId,
-                    )
+                    let metadataUri = null
+                    try {
+                      metadataUri = await fetchMetadataUriWithOpenSeaFallback(
+                        address,
+                        +tokenId,
+                      )
+                    } catch (err) {}
                     if (!metadataUri) {
                       toast({
                         duration: 3000,

@@ -158,12 +158,13 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
           </VStack>
         </VStack>
         <Logo
-          width="120px"
-          height="120px"
-          opacity="0.1"
+          flipped
+          width="100px"
+          height="100px"
+          opacity={useColorModeValue(0.25, 0.15)}
           position="absolute"
-          bottom="-15px"
-          right="-15px"
+          bottom="8px"
+          right="8px"
         />
       </Box>
       {unranked ? (
