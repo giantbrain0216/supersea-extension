@@ -220,25 +220,15 @@ const Filters = ({
           />
         </VStack>
       </VStack>
-      <Box
-        position="absolute"
-        bottom="0"
-        right="0"
+      <Logo
+        flipped
         width="100px"
         height="100px"
-        overflow="hidden"
-        borderBottomRightRadius="lg"
-      >
-        <Logo
-          flipped
-          width="100%"
-          height="100%"
-          opacity={useColorModeValue(0.25, 0.15)}
-          position="absolute"
-          bottom="8px"
-          right="8px"
-        />
-      </Box>
+        opacity={useColorModeValue(0.25, 0.15)}
+        position="absolute"
+        bottom="8px"
+        right="8px"
+      />
       <motion.div
         style={{
           display: showSearchProgress ? 'block' : 'none',
