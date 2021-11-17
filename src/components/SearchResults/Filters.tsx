@@ -224,18 +224,19 @@ const Filters = ({
         position="absolute"
         bottom="0"
         right="0"
+        width="100px"
+        height="100px"
         overflow="hidden"
         borderBottomRightRadius="lg"
-        width="120px"
-        height="120px"
       >
         <Logo
+          flipped
           width="100%"
           height="100%"
-          opacity="0.1"
+          opacity={useColorModeValue(0.25, 0.15)}
           position="absolute"
-          bottom="-15px"
-          right="-15px"
+          bottom="8px"
+          right="8px"
         />
       </Box>
       <motion.div
