@@ -428,9 +428,8 @@ const AssetInfo = ({
                   Replace image from source
                 </MenuItem>
                 <MenuItem
-                  isDisabled={chain === 'polygon' || !isSubscriber}
+                  isDisabled={chain === 'polygon'}
                   onClick={async () => {
-                    if (!isSubscriber) return
                     globalConfig.autoQueueAddresses[address] = !globalConfig
                       .autoQueueAddresses[address]
 
@@ -451,11 +450,6 @@ const AssetInfo = ({
                 >
                   <Text maxWidth="210px">
                     Mass-queue OpenSea refresh for collection
-                    {!isSubscriber && (
-                      <Box ml="1" display="inline-block">
-                        <LockedFeature />
-                      </Box>
-                    )}
                     {isAutoQueued && (
                       <CheckIcon
                         width="12px"
@@ -467,9 +461,8 @@ const AssetInfo = ({
                   </Text>
                 </MenuItem>
                 <MenuItem
-                  isDisabled={chain === 'polygon' || !isSubscriber}
+                  isDisabled={chain === 'polygon'}
                   onClick={async () => {
-                    if (!isSubscriber) return
                     globalConfig.autoImageReplaceAddresses[
                       address
                     ] = !globalConfig.autoImageReplaceAddresses[address]
@@ -491,11 +484,6 @@ const AssetInfo = ({
                 >
                   <Text maxWidth="210px">
                     Mass-replace image from source for collection
-                    {!isSubscriber && (
-                      <Box ml="1" display="inline-block">
-                        <LockedFeature />
-                      </Box>
-                    )}
                     {isAutoImageReplaced && (
                       <CheckIcon
                         width="12px"
