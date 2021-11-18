@@ -1,6 +1,6 @@
 import { WarningTwoIcon, CheckCircleIcon } from '@chakra-ui/icons'
 import { Flex, Text, Icon, useColorModeValue } from '@chakra-ui/react'
-import LogoSvg from '../assets/logo.svg'
+import LogoSvg from '../assets/logo-flipped.svg'
 
 const BundleVerification = ({ numAddresses }: { numAddresses: number }) => {
   const verified = numAddresses === 1
@@ -29,12 +29,12 @@ const BundleVerification = ({ numAddresses }: { numAddresses: number }) => {
       <Icon
         as={LogoSvg as any}
         position="absolute"
-        opacity={verified ? 0.4 : 0.6}
+        opacity="0.6"
         color="white"
-        width="80px"
-        height="80px"
+        width="40px"
+        height="40px"
         top="50%"
-        right="-8px"
+        right="4px"
         transform="translateY(-50%)"
       />
     </Flex>

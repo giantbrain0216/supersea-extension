@@ -39,6 +39,16 @@ import { OrderSide } from 'opensea-js/lib/types'
         event.data.params.as,
         event.data.params.options,
       )
+    } else if (event.data.method === 'SuperSea__GetEthAddress') {
+      const address =
+        (window as any).ethereum?.selectedAddress ||
+        (await (window as any).ethereum?.request({ method: 'eth_accounts' }))[0]
+      window.postMessage({
+        method: 'SuperSea__GetEthAddress__Success',
+        params: {
+          ethAddress: address,
+        },
+      })
     }
   })
 

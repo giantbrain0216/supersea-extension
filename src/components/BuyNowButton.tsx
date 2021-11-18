@@ -123,7 +123,7 @@ const BuyNowButton = (
   const [config] = useExtensionConfig()
   const user = useUser()
   const isAccountPage = window.location.pathname.split('/')[1] === 'account'
-  if (config === null || user === null || !user.isFounder || isAccountPage)
+  if (config === null || user === null || !user.isSubscriber || isAccountPage)
     return null
   return <BuyNowButtonUI {...props} active={config.quickBuyEnabled} />
 }

@@ -35,18 +35,18 @@ const QuickBuyToggle = ({
       <HStack spacing="3" alignItems="center">
         <Switch
           id="quick-buy"
-          isDisabled={isDisabled || !user.isFounder}
+          isDisabled={isDisabled || !user.isSubscriber}
           isChecked={isChecked}
           ref={switchRef}
           onChange={() => {
-            if (user.isFounder) {
+            if (user.isSubscriber) {
               onChange(!isChecked)
             }
           }}
         />
-        {!user.isFounder && (
+        {!user.isSubscriber && (
           <Box top="1px" position="relative">
-            <LockedFeature level="founder" />
+            <LockedFeature level="subscriber" />
           </Box>
         )}
       </HStack>

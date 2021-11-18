@@ -1,6 +1,6 @@
 export type HierarchySelector = {
   selector: string
-  hierarchy: 'child' | 'parent' | 'either'
+  hierarchy: 'child' | 'parent' | 'either' | 'outside'
 }
 
 export type AssetInfoSelector = {
@@ -9,6 +9,7 @@ export type AssetInfoSelector = {
     injectionMethod: 'append' | 'prepend'
   }
   link: HierarchySelector
+  collectionLink: HierarchySelector
   image: HierarchySelector
 }
 
@@ -46,6 +47,8 @@ export const selectElement = (
     return container.querySelector(selector)
   } else if (hierarchy === 'parent') {
     return container.closest(selector)
+  } else if (hierarchy === 'outside') {
+    return document.querySelector(selector)
   }
   return container.querySelector(selector) || container.closest(selector)
 }

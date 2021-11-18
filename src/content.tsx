@@ -69,19 +69,35 @@ const injectAssetInfo = async () => {
     if (node.dataset[NODE_PROCESSED_DATA_KEY]) return
     node.dataset[NODE_PROCESSED_DATA_KEY] = '1'
 
-    const { address, tokenId, chain } = (() => {
+    const { address, tokenId, chain, collectionSlug } = (() => {
+      let collectionSlug = (() => {
+        let collectionLink = selectElement(node, selectorConfig.collectionLink)
+        if (collectionLink) {
+          return (
+            (collectionLink
+              .getAttribute('href')
+              ?.split('/')
+              .filter((s) => s.length)
+              .slice(-1) || [])[0] || ''
+          )
+        }
+        return ''
+      })()
+
       if (type === 'item') {
         const path = window.location.pathname.split('/')
         const [tokenType, address, tokenId] = path.slice(-3)
         return {
           address: address.toLowerCase(),
           tokenId: tokenId,
+          collectionSlug,
           chain:
             tokenType === 'matic'
               ? ('polygon' as const)
               : ('ethereum' as const),
         }
       }
+
       let link = selectElement(node, selectorConfig.link)
       if (link) {
         const [tokenType, address, tokenId] =
@@ -94,6 +110,7 @@ const injectAssetInfo = async () => {
         return {
           address,
           tokenId,
+          collectionSlug,
           chain:
             tokenType === 'matic'
               ? ('polygon' as const)
@@ -115,6 +132,7 @@ const injectAssetInfo = async () => {
     }
     container.dataset['address'] = address
     container.dataset['tokenId'] = tokenId
+    container.dataset['collectionSlug'] = collectionSlug
     container.dataset['chain'] = chain
     container.dataset['type'] = type
   })
@@ -191,23 +209,25 @@ const injectProfileSummary = async () => {
   const accountBanner = accountTitle?.parentElement
 
   if (!accountBanner || accountBanner.dataset[NODE_PROCESSED_DATA_KEY]) return
-
-  const userName = accountTitle.innerText
-  const ensName = (accountBanner.querySelector(
-    selectors.profileSummary.accountEnsNameSelector,
-  ) as HTMLElement | null)?.innerText
   const addressSlug = window.location.pathname.split('/')[1]
-  const address =
-    addressSlug === 'account'
-      ? (window as any).ethereum?.selectedAddress
-      : addressSlug
-  accountBanner.dataset[NODE_PROCESSED_DATA_KEY] = '1'
-  const container = document.createElement('div')
-  accountBanner.appendChild(container)
-  injectReact(
-    <ProfileSummary userName={userName} address={address} ensName={ensName} />,
-    container,
-  )
+  if (addressSlug === 'account') {
+    accountBanner.dataset[NODE_PROCESSED_DATA_KEY] = '1'
+    const messageListener = (event: MessageEvent) => {
+      if (event.data.method === 'SuperSea__GetEthAddress__Success') {
+        window.removeEventListener('message', messageListener)
+        const container = document.createElement('div')
+        accountBanner.appendChild(container)
+        injectReact(
+          <ProfileSummary address={event.data.params.ethAddress} />,
+          container,
+        )
+      }
+    }
+    window.addEventListener('message', messageListener)
+    window.postMessage({
+      method: 'SuperSea__GetEthAddress',
+    })
+  }
 }
 
 const throttledInjectAssetInfo = _.throttle(injectAssetInfo, 250)
@@ -221,12 +241,13 @@ const throttledDestroyRemovedInjections = _.throttle(
   1000,
 )
 
-const injectInPageContextScript = () => {
+const injectInPageContextScript = (onComplete: () => void) => {
   const s = document.createElement('script')
   s.src = chrome.runtime.getURL('static/js/pageContextInject.js')
   document.head.appendChild(s)
   s.onload = function () {
     s.remove()
+    onComplete()
   }
 }
 
@@ -344,15 +365,27 @@ const throttledInjectCollectionMenu = _.throttle(injectCollectionMenu, 250)
 const setupInjections = async () => {
   injectBundleVerification()
   injectAssetInfo()
-  injectProfileSummary()
   injectCollectionMenu()
 
   const observer = new MutationObserver(() => {
     throttledInjectBundleVerification()
     throttledInjectAssetInfo()
-    throttledInjectProfileSummary()
     throttledInjectCollectionMenu()
     throttledDestroyRemovedInjections()
+  })
+
+  observer.observe(document, {
+    attributes: true,
+    childList: true,
+    subtree: true,
+  })
+}
+
+const setupDelayedInjections = async () => {
+  injectProfileSummary()
+
+  const observer = new MutationObserver(() => {
+    throttledInjectProfileSummary()
   })
 
   observer.observe(document, {
@@ -371,13 +404,20 @@ const setupAssetInfoRenderer = () => {
       if (selectedNodes.length !== 0) {
         const nodes = [...Array.from(selectedNodes)] as HTMLElement[]
         nodes.forEach((node: HTMLElement) => {
-          const { address, tokenId, chain, type } = node.dataset as any
+          const {
+            address,
+            tokenId,
+            chain,
+            type,
+            collectionSlug,
+          } = node.dataset as any
           injectReact(
             <AssetInfo
               address={address}
               tokenId={tokenId}
               chain={chain}
               type={type}
+              collectionSlug={collectionSlug}
               container={node.parentElement!}
             />,
             node,
@@ -427,7 +467,7 @@ const initialize = async () => {
     addGlobalStyle()
     setupAssetInfoRenderer()
     setupSearchResultsTab()
-    injectInPageContextScript()
+    injectInPageContextScript(setupDelayedInjections)
   }
 }
 

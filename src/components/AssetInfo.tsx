@@ -54,23 +54,27 @@ const replaceImageRateLimit = RateLimit(3)
 export const RARITY_TYPES = [
   {
     top: 0.001,
-    name: 'Legendary',
+    name: 'Legendary' as const,
     color: { light: 'orange.200', dark: 'orange.500' },
   },
   {
     top: 0.01,
-    name: 'Epic',
+    name: 'Epic' as const,
     color: { light: 'purple.200', dark: 'purple.500' },
   },
-  { top: 0.1, name: 'Rare', color: { light: 'blue.200', dark: 'blue.500' } },
+  {
+    top: 0.1,
+    name: 'Rare' as const,
+    color: { light: 'blue.200', dark: 'blue.500' },
+  },
   {
     top: 0.5,
-    name: 'Uncommon',
+    name: 'Uncommon' as const,
     color: { light: 'green.200', dark: 'green.500' },
   },
   {
     top: Infinity,
-    name: 'Common',
+    name: 'Common' as const,
     color: { light: 'gray.200', dark: 'gray.500' },
   },
 ]
@@ -93,12 +97,22 @@ const RarityBadge = ({
   if (isSubscriber || isMembershipNFT) {
     const tooltipLabel = (() => {
       if (isMembershipNFT) {
-        return "You're all legendary to us <3"
+        return <Text my="0">You're all legendary to us &lt;3</Text>
       }
       if (rarity) {
-        return `${rarity.type.name}${
-          rarity.type.top !== Infinity ? ` (top ${rarity.type.top * 100}%)` : ''
-        }`
+        return (
+          <Box>
+            <Text my="0">
+              {rarity.type.name}
+              {rarity.type.top !== Infinity
+                ? ` (top ${rarity.type.top * 100}%)`
+                : ' (bottom 50%)'}
+            </Text>
+            <Text opacity="0.5" my="0" mt="1">
+              #{rarity.rank} / {rarity.tokenCount}
+            </Text>
+          </Box>
+        )
       }
 
       return ''
@@ -132,10 +146,12 @@ const AssetInfo = ({
   tokenId,
   type,
   container,
+  collectionSlug,
   chain,
 }: {
   address: string
   tokenId: string
+  collectionSlug?: string
   type: 'grid' | 'list' | 'item'
   chain: Chain
   container: HTMLElement
@@ -217,8 +233,12 @@ const AssetInfo = ({
   const queueRefresh = useCallback(async () => {
     if (refreshState === 'QUEUING') return
     setRefreshState('QUEUING')
-    const success = await triggerOpenSeaMetadataRefresh(address, tokenId)
-    setRefreshState(success ? 'QUEUED' : 'FAILED')
+    try {
+      await triggerOpenSeaMetadataRefresh(address, tokenId)
+      setRefreshState('QUEUED')
+    } catch (err) {
+      setRefreshState('FAILED')
+    }
   }, [address, refreshState, tokenId])
 
   const autoQueueRefresh = useCallback(() => {
@@ -247,8 +267,17 @@ const AssetInfo = ({
   useEffect(() => {
     if (!(address && tokenId)) return
     ;(async () => {
-      const floor = await fetchFloorPrice({ address, tokenId, chain })
-      setFloor(floor)
+      try {
+        const floor = await fetchFloorPrice({
+          address,
+          tokenId,
+          chain,
+          collectionSlug,
+        })
+        setFloor(floor)
+      } catch (err) {
+        setFloor(null)
+      }
     })()
     ;(async () => {
       if (isSubscriber) {
@@ -357,22 +386,15 @@ const AssetInfo = ({
           zIndex={0}
         >
           <Logo
+            flipped
             position="absolute"
-            opacity={useColorModeValue(
-              rarity ? 0.4 : 0.35,
-              rarity ? 0.15 : 0.1,
-            )}
-            width={type === 'list' ? '70px' : '120px'}
-            height={type === 'list' ? '70px' : '120px'}
+            opacity={rarity && (isSubscriber || isMembershipNFT) ? 0.15 : 0.1}
+            width={type === 'list' ? '42px' : '60px'}
+            height={type === 'list' ? '42px' : '60px'}
             top="50%"
-            right="-16px"
+            right="6px"
             transform="translateY(-50%)"
-            color={useColorModeValue(
-              rarity && (isSubscriber || isMembershipNFT)
-                ? 'white'
-                : 'gray.300',
-              'white',
-            )}
+            color={useColorModeValue('black', 'white')}
           />
           <Box position="absolute" bottom="2" right="2">
             <RefreshIndicator state={refreshState} />
@@ -428,9 +450,8 @@ const AssetInfo = ({
                   Replace image from source
                 </MenuItem>
                 <MenuItem
-                  isDisabled={chain === 'polygon' || !isSubscriber}
+                  isDisabled={chain === 'polygon'}
                   onClick={async () => {
-                    if (!isSubscriber) return
                     globalConfig.autoQueueAddresses[address] = !globalConfig
                       .autoQueueAddresses[address]
 
@@ -451,11 +472,6 @@ const AssetInfo = ({
                 >
                   <Text maxWidth="210px">
                     Mass-queue OpenSea refresh for collection
-                    {!isSubscriber && (
-                      <Box ml="1" display="inline-block">
-                        <LockedFeature />
-                      </Box>
-                    )}
                     {isAutoQueued && (
                       <CheckIcon
                         width="12px"
@@ -467,9 +483,8 @@ const AssetInfo = ({
                   </Text>
                 </MenuItem>
                 <MenuItem
-                  isDisabled={chain === 'polygon' || !isSubscriber}
+                  isDisabled={chain === 'polygon'}
                   onClick={async () => {
-                    if (!isSubscriber) return
                     globalConfig.autoImageReplaceAddresses[
                       address
                     ] = !globalConfig.autoImageReplaceAddresses[address]
@@ -491,11 +506,6 @@ const AssetInfo = ({
                 >
                   <Text maxWidth="210px">
                     Mass-replace image from source for collection
-                    {!isSubscriber && (
-                      <Box ml="1" display="inline-block">
-                        <LockedFeature />
-                      </Box>
-                    )}
                     {isAutoImageReplaced && (
                       <CheckIcon
                         width="12px"
@@ -509,10 +519,13 @@ const AssetInfo = ({
                 <MenuItem
                   isDisabled={chain === 'polygon'}
                   onClick={async () => {
-                    let metadataUri = await fetchMetadataUriWithOpenSeaFallback(
-                      address,
-                      +tokenId,
-                    )
+                    let metadataUri = null
+                    try {
+                      metadataUri = await fetchMetadataUriWithOpenSeaFallback(
+                        address,
+                        +tokenId,
+                      )
+                    } catch (err) {}
                     if (!metadataUri) {
                       toast({
                         duration: 3000,
@@ -584,11 +597,11 @@ const AssetInfo = ({
             <Text opacity={0.7} mr="0.5em">
               Floor:{' '}
             </Text>
-            {floor ? (
+            {floor !== undefined ? (
               <>
                 {floor?.currency === 'ETH' ? <EthereumIcon /> : null}
                 <Link
-                  href={floor.floorSearchUrl}
+                  href={floor ? floor.floorSearchUrl : undefined}
                   fontWeight="500"
                   verticalAlign="middle"
                 >
