@@ -84,8 +84,6 @@ export type Chain = 'ethereum' | 'polygon'
 
 const REMOTE_ASSET_BASE = 'https://nonfungible.tools/supersea'
 
-const openSeaSema = new Sema(3)
-const openSeaRateLimit = RateLimit(3)
 const openSeaPublicRateLimit = RateLimit(2)
 
 let selectorsPromise: null | Promise<Selectors> = null
@@ -124,51 +122,6 @@ export const fetchGlobalCSS = () => {
     })
   }
   return cssPromise
-}
-
-const getOpenSeaHeaders = () => {
-  return new Promise((resolve) => {
-    chrome.storage.local.get(['openSeaHeaders'], ({ openSeaHeaders }) => {
-      resolve(openSeaHeaders)
-    })
-  })
-}
-
-const openSeaRequest = async (query: any, variables: any = {}) => {
-  await openSeaSema.acquire()
-  await openSeaRateLimit()
-  let res = null
-  const headers = (await getOpenSeaHeaders()) as any
-  try {
-    res = fetch('https://api.opensea.io/graphql/batch/', {
-      headers: {
-        ...headers,
-        'content-type': 'application/json',
-        'X-SIGNED-QUERY': 'SuperSea',
-      },
-      body: JSON.stringify([{ id: 'batchQuery', query: query, variables }]),
-      method: 'POST',
-    })
-      .then((res) => res.json())
-      .then((json) => json[0]?.data)
-  } catch (err: any) {
-    if (err.response && err.response.data) {
-      res = err.response.data
-    }
-  }
-  chrome.storage.local.get(
-    ['openSeaRateLimitRemaining'],
-    ({ openSeaRateLimitRemaining }) => {
-      if (openSeaRateLimitRemaining > 10) {
-        openSeaSema.release()
-      } else {
-        setTimeout(() => {
-          openSeaSema.release()
-        }, 2500)
-      }
-    },
-  )
-  return res
 }
 
 const refreshTokenQuery = gql`
@@ -498,49 +451,27 @@ export const fetchMetadata = async (
   contractAddress: string,
   tokenId: number,
 ) => {
-  try {
-    const {
-      getTokenMetadata: { data },
-    } = await nonFungibleRequest(metadataQuery, {
-      tokenMetadataInput: {
-        contractAddress,
-        tokenId,
-      },
-    })
-    if (data) {
-      return data
-    }
-  } catch (err) {}
-  const query = gql`
-    query {
-      archetype(archetype: {assetContractAddress: "${contractAddress}", tokenId: "${tokenId}"}) {
-        asset {
-          tokenMetadata
-        }
-      }
-    }
-  `
-  const res = await openSeaRequest(query)
-  return res.archetype.asset.tokenMetadata
+  const {
+    getTokenMetadata: { data },
+  } = await nonFungibleRequest(metadataQuery, {
+    tokenMetadataInput: {
+      contractAddress,
+      tokenId,
+    },
+  })
+  return data
 }
 
 export const fetchMetadataUriWithOpenSeaFallback = async (
   address: string,
   tokenId: number,
 ) => {
-  const contractTokenUri = await fetchMetadataUri(address, tokenId)
+  let contractTokenUri = await fetchMetadataUri(address, tokenId)
   if (!contractTokenUri) {
-    const query = gql`
-      query {
-        archetype(archetype: {assetContractAddress: "${address}", tokenId: "${tokenId}"}) {
-          asset {
-            tokenMetadata
-          }
-        }
-      }
-    `
-    const res = await openSeaRequest(query)
-    return res.archetype.asset.tokenMetadata
+    const asset = await fetch(
+      `https://api.opensea.io/api/v1/asset/${address}/${tokenId}`,
+    ).then((res) => res.json())
+    contractTokenUri = asset.token_metadata
   }
   return contractTokenUri.replace(/^ipfs:\/\//, 'https://ipfs.io/ipfs/')
 }
