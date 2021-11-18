@@ -209,23 +209,25 @@ const injectProfileSummary = async () => {
   const accountBanner = accountTitle?.parentElement
 
   if (!accountBanner || accountBanner.dataset[NODE_PROCESSED_DATA_KEY]) return
-
-  const userName = accountTitle.innerText
-  const ensName = (accountBanner.querySelector(
-    selectors.profileSummary.accountEnsNameSelector,
-  ) as HTMLElement | null)?.innerText
   const addressSlug = window.location.pathname.split('/')[1]
-  const address =
-    addressSlug === 'account'
-      ? (window as any).ethereum?.selectedAddress
-      : addressSlug
-  accountBanner.dataset[NODE_PROCESSED_DATA_KEY] = '1'
-  const container = document.createElement('div')
-  accountBanner.appendChild(container)
-  injectReact(
-    <ProfileSummary userName={userName} address={address} ensName={ensName} />,
-    container,
-  )
+  if (addressSlug === 'account') {
+    accountBanner.dataset[NODE_PROCESSED_DATA_KEY] = '1'
+    const messageListener = (event: MessageEvent) => {
+      if (event.data.method === 'SuperSea__GetEthAddress__Success') {
+        window.removeEventListener('message', messageListener)
+        const container = document.createElement('div')
+        accountBanner.appendChild(container)
+        injectReact(
+          <ProfileSummary address={event.data.params.ethAddress} />,
+          container,
+        )
+      }
+    }
+    window.addEventListener('message', messageListener)
+    window.postMessage({
+      method: 'SuperSea__GetEthAddress',
+    })
+  }
 }
 
 const throttledInjectAssetInfo = _.throttle(injectAssetInfo, 250)
@@ -239,12 +241,13 @@ const throttledDestroyRemovedInjections = _.throttle(
   1000,
 )
 
-const injectInPageContextScript = () => {
+const injectInPageContextScript = (onComplete: () => void) => {
   const s = document.createElement('script')
   s.src = chrome.runtime.getURL('static/js/pageContextInject.js')
   document.head.appendChild(s)
   s.onload = function () {
     s.remove()
+    onComplete()
   }
 }
 
@@ -362,15 +365,27 @@ const throttledInjectCollectionMenu = _.throttle(injectCollectionMenu, 250)
 const setupInjections = async () => {
   injectBundleVerification()
   injectAssetInfo()
-  injectProfileSummary()
   injectCollectionMenu()
 
   const observer = new MutationObserver(() => {
     throttledInjectBundleVerification()
     throttledInjectAssetInfo()
-    throttledInjectProfileSummary()
     throttledInjectCollectionMenu()
     throttledDestroyRemovedInjections()
+  })
+
+  observer.observe(document, {
+    attributes: true,
+    childList: true,
+    subtree: true,
+  })
+}
+
+const setupDelayedInjections = async () => {
+  injectProfileSummary()
+
+  const observer = new MutationObserver(() => {
+    throttledInjectProfileSummary()
   })
 
   observer.observe(document, {
@@ -452,7 +467,7 @@ const initialize = async () => {
     addGlobalStyle()
     setupAssetInfoRenderer()
     setupSearchResultsTab()
-    injectInPageContextScript()
+    injectInPageContextScript(setupDelayedInjections)
   }
 }
 

@@ -459,39 +459,30 @@ const userAssetsQuery = gql`
   }
 `
 
-const fetchAllAssetsRateLimit = RateLimit(3)
-export const fetchAllAssetsForUser = async ({
-  userName,
-  ensName,
-  address,
-  onPageFetched,
-}: {
-  userName?: string
-  ensName?: string
-  address?: string
-  onPageFetched: (page: any[], count: number) => void
-}) => {
-  const selector = (() => {
-    if (ensName) return { ensName }
-    if (userName && userName !== 'Unnamed') return { userName }
-    return { address }
-  })()
-  let hasNextPage = true
-  let cursor = null
-  let result: any[] = []
-  while (hasNextPage) {
-    await fetchAllAssetsRateLimit()
-    const res: any = await openSeaRequest(userAssetsQuery, {
-      cursor,
-      ...selector,
-    })
-    hasNextPage = res.search.pageInfo.hasNextPage
-    cursor = res.search.pageInfo.endCursor
-    const assets = res.search.edges.map(({ node }: { node: any }) => node.asset)
-    onPageFetched(assets, res.search.totalCount)
-    result = result.concat(assets)
+export const fetchAllCollectionsForUser = async (
+  address: string,
+  list = [],
+  offset = 0,
+): Promise<{ slug: string; ownedCount: number }[]> => {
+  await openSeaPublicRateLimit()
+  const collections = await fetch(
+    `https://api.opensea.io/api/v1/collections?asset_owner=${address}&offset=${offset}&limit=300`,
+  ).then((res) => res.json())
+  const updatedList = list.concat(
+    collections.map(
+      (collection: { slug: string; owned_asset_count: number }) => {
+        return {
+          slug: collection.slug,
+          ownedCount: collection.owned_asset_count,
+        }
+      },
+    ),
+  )
+  if (collections.length === 300) {
+    return fetchAllCollectionsForUser(address, updatedList, offset + 300)
+  } else {
+    return updatedList
   }
-  return result
 }
 
 const metadataQuery = gql`

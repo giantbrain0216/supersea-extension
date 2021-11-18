@@ -13,18 +13,14 @@ import {
   useColorModeValue,
 } from '@chakra-ui/react'
 import Logo from './Logo'
-import { fetchAllAssetsForUser, fetchFloorPrice, Floor } from '../utils/api'
+import {
+  fetchAllCollectionsForUser,
+  fetchFloorPrice,
+  Floor,
+} from '../utils/api'
 import EthereumIcon from './EthereumIcon'
 
-const ProfileSummary = ({
-  userName,
-  ensName,
-  address,
-}: {
-  userName?: string
-  ensName?: string
-  address?: string
-}) => {
+const ProfileSummary = ({ address }: { address: string }) => {
   const [active, setActive] = useState(false)
   const [progress, setProgress] = useState<{
     total: number
@@ -35,37 +31,26 @@ const ProfileSummary = ({
 
   useEffect(() => {
     if (!active) return
-    fetchAllAssetsForUser({
-      userName,
-      ensName,
-      address,
-      onPageFetched: async (assetsPage, totalCount) => {
-        const floors = await Promise.all(
-          assetsPage
-            .filter(Boolean)
-            .map(async ({ assetContract: { address, chain }, tokenId }) =>
-              fetchFloorPrice({
-                address,
-                tokenId,
-                chain: chain === 'MATIC' ? 'polygon' : 'ethereum',
-              }),
-            ),
-        )
-        setFloorTotal(
-          (floorTotal) =>
-            (floorTotal += (floors.filter(Boolean) as Floor[]).reduce(
-              (acc, { price }) => acc + price,
-              0,
-            )),
-        )
-        setProgress(({ numLoaded }) => ({
-          total: totalCount,
-          numLoaded: numLoaded + assetsPage.length,
-          complete: numLoaded + assetsPage.length >= totalCount,
-        }))
-      },
-    })
-  }, [userName, ensName, address, active])
+    ;(async () => {
+      const collections = await fetchAllCollectionsForUser(address)
+      await Promise.all(
+        collections.map(async ({ slug, ownedCount }) => {
+          const floor = await fetchFloorPrice({
+            collectionSlug: slug,
+            tokenId: '1',
+            address: slug,
+            chain: 'ethereum',
+          })
+          setFloorTotal((total) => total + floor.price * ownedCount)
+          setProgress(({ numLoaded }) => ({
+            total: collections.length,
+            numLoaded: numLoaded + 1,
+            complete: numLoaded + 1 >= collections.length,
+          }))
+        }),
+      )
+    })()
+  }, [address, active])
 
   return (
     <Box px={3} width="100vw" maxWidth="480px">
