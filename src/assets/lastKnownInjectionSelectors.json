@@ -9,6 +9,10 @@
         "selector": ".Asset--anchor",
         "hierarchy": "either"
       },
+      "collectionLink": {
+        "selector": ".AssetCardFooter--collection-name",
+        "hierarchy": "either"
+      },
       "image": {
         "selector": ".Image--image, .SuperSea__Image",
         "hierarchy": "child"
@@ -21,6 +25,10 @@
       },
       "link": {
         "selector": ".AssetCell--link",
+        "hierarchy": "either"
+      },
+      "collectionLink": {
+        "selector": ".CollectionLink--link",
         "hierarchy": "either"
       },
       "image": {
@@ -36,6 +44,10 @@
       "link": {
         "selector": ".AssetCell--link",
         "hierarchy": "child"
+      },
+      "collectionLink": {
+        "selector": ".CollectionLink--link",
+        "hierarchy": "outside"
       },
       "image": {
         "selector": ".Image--image",

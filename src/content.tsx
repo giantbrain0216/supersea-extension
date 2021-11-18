@@ -69,19 +69,35 @@ const injectAssetInfo = async () => {
     if (node.dataset[NODE_PROCESSED_DATA_KEY]) return
     node.dataset[NODE_PROCESSED_DATA_KEY] = '1'
 
-    const { address, tokenId, chain } = (() => {
+    const { address, tokenId, chain, collectionSlug } = (() => {
+      let collectionSlug = (() => {
+        let collectionLink = selectElement(node, selectorConfig.collectionLink)
+        if (collectionLink) {
+          return (
+            (collectionLink
+              .getAttribute('href')
+              ?.split('/')
+              .filter((s) => s.length)
+              .slice(-1) || [])[0] || ''
+          )
+        }
+        return ''
+      })()
+
       if (type === 'item') {
         const path = window.location.pathname.split('/')
         const [tokenType, address, tokenId] = path.slice(-3)
         return {
           address: address.toLowerCase(),
           tokenId: tokenId,
+          collectionSlug,
           chain:
             tokenType === 'matic'
               ? ('polygon' as const)
               : ('ethereum' as const),
         }
       }
+
       let link = selectElement(node, selectorConfig.link)
       if (link) {
         const [tokenType, address, tokenId] =
@@ -94,6 +110,7 @@ const injectAssetInfo = async () => {
         return {
           address,
           tokenId,
+          collectionSlug,
           chain:
             tokenType === 'matic'
               ? ('polygon' as const)
@@ -115,6 +132,7 @@ const injectAssetInfo = async () => {
     }
     container.dataset['address'] = address
     container.dataset['tokenId'] = tokenId
+    container.dataset['collectionSlug'] = collectionSlug
     container.dataset['chain'] = chain
     container.dataset['type'] = type
   })
@@ -371,13 +389,20 @@ const setupAssetInfoRenderer = () => {
       if (selectedNodes.length !== 0) {
         const nodes = [...Array.from(selectedNodes)] as HTMLElement[]
         nodes.forEach((node: HTMLElement) => {
-          const { address, tokenId, chain, type } = node.dataset as any
+          const {
+            address,
+            tokenId,
+            chain,
+            type,
+            collectionSlug,
+          } = node.dataset as any
           injectReact(
             <AssetInfo
               address={address}
               tokenId={tokenId}
               chain={chain}
               type={type}
+              collectionSlug={collectionSlug}
               container={node.parentElement!}
             />,
             node,

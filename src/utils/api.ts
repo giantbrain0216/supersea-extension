@@ -86,7 +86,7 @@ const REMOTE_ASSET_BASE = 'https://nonfungible.tools/supersea'
 
 const openSeaSema = new Sema(3)
 const openSeaRateLimit = RateLimit(3)
-const openSeaPublicRateLimit = RateLimit(3)
+const openSeaPublicRateLimit = RateLimit(2)
 
 let selectorsPromise: null | Promise<Selectors> = null
 export const fetchSelectors = () => {
@@ -243,41 +243,36 @@ const nonFungibleRequest = async (
 
 const floorPriceLoader = new DataLoader(
   async (
-    keys: readonly { address: string; tokenId: string; chain: Chain }[],
+    keys: readonly {
+      address: string
+      tokenId: string
+      chain: Chain
+      collectionSlug?: string
+    }[],
   ) => {
-    const query = gql`
-			query batchQuery {
-				${keys.map(
-          ({ address, tokenId, chain }) => `
-				  addr_${address}_${tokenId}:  archetype(archetype: {assetContractAddress: "${address}", tokenId: "${tokenId}", chain: "${
-            chain === 'polygon' ? 'MATIC' : ''
-          }"}) {
-            asset {
-              collection {
-                floorPrice
-                slug
-              }
-            }
-          }	
-				`,
-        )}
-			}
-		`
-    const res = await openSeaRequest(query)
-    return keys.map(({ address, tokenId }) => {
-      const response = res[`addr_${address}_${tokenId}`]
-      if (!response) return null
-      const collection = response.asset.collection
-      return {
-        price: Math.round(collection.floorPrice * 10000) / 10000,
-        floorSearchUrl: `https://opensea.io/collection/${collection.slug}?search[sortAscending]=true&search[sortBy]=PRICE&search[toggles][0]=BUY_NOW`,
+    const { address, tokenId, collectionSlug } = keys[0]
+    let slug = collectionSlug
+    if (!slug) {
+      await openSeaPublicRateLimit()
+      const asset = await fetch(
+        `https://api.opensea.io/api/v1/asset/${address}/${tokenId}`,
+      ).then((res) => res.json())
+      slug = asset.collection.slug
+    }
+    await openSeaPublicRateLimit()
+    const { stats } = await fetch(
+      `https://api.opensea.io/api/v1/collection/${slug}/stats`,
+    ).then((res) => res.json())
+    return [
+      {
+        price: Math.round(stats.floor_price * 10000) / 10000,
+        floorSearchUrl: `https://opensea.io/collection/${slug}?search[sortAscending]=true&search[sortBy]=PRICE&search[toggles][0]=BUY_NOW`,
         currency: 'ETH',
-      }
-    })
+      },
+    ]
   },
   {
-    batchScheduleFn: (callback) => setTimeout(callback, 250),
-    maxBatchSize: 10,
+    maxBatchSize: 1,
     cacheKeyFn: ({ address, tokenId }) => {
       if (OPENSEA_SHARED_CONTRACT_ADDRESSES.includes(address))
         return `${address}/${tokenId.slice(
@@ -293,6 +288,7 @@ export const fetchFloorPrice = (params: {
   address: string
   tokenId: string
   chain: Chain
+  collectionSlug?: string
 }) => {
   return floorPriceLoader.load(params) as Promise<Floor>
 }

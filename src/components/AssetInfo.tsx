@@ -146,10 +146,12 @@ const AssetInfo = ({
   tokenId,
   type,
   container,
+  collectionSlug,
   chain,
 }: {
   address: string
   tokenId: string
+  collectionSlug?: string
   type: 'grid' | 'list' | 'item'
   chain: Chain
   container: HTMLElement
@@ -261,8 +263,17 @@ const AssetInfo = ({
   useEffect(() => {
     if (!(address && tokenId)) return
     ;(async () => {
-      const floor = await fetchFloorPrice({ address, tokenId, chain })
-      setFloor(floor)
+      try {
+        const floor = await fetchFloorPrice({
+          address,
+          tokenId,
+          chain,
+          collectionSlug,
+        })
+        setFloor(floor)
+      } catch (err) {
+        setFloor(null)
+      }
     })()
     ;(async () => {
       if (isSubscriber) {
@@ -582,11 +593,11 @@ const AssetInfo = ({
             <Text opacity={0.7} mr="0.5em">
               Floor:{' '}
             </Text>
-            {floor ? (
+            {floor !== undefined ? (
               <>
                 {floor?.currency === 'ETH' ? <EthereumIcon /> : null}
                 <Link
-                  href={floor.floorSearchUrl}
+                  href={floor ? floor.floorSearchUrl : undefined}
                   fontWeight="500"
                   verticalAlign="middle"
                 >
