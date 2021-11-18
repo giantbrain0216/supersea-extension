@@ -233,8 +233,12 @@ const AssetInfo = ({
   const queueRefresh = useCallback(async () => {
     if (refreshState === 'QUEUING') return
     setRefreshState('QUEUING')
-    const success = await triggerOpenSeaMetadataRefresh(address, tokenId)
-    setRefreshState(success ? 'QUEUED' : 'FAILED')
+    try {
+      await triggerOpenSeaMetadataRefresh(address, tokenId)
+      setRefreshState('QUEUED')
+    } catch (err) {
+      setRefreshState('FAILED')
+    }
   }, [address, refreshState, tokenId])
 
   const autoQueueRefresh = useCallback(() => {
