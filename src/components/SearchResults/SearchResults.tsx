@@ -181,7 +181,7 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
           weiToEth(+asset.sell_orders[0].current_price) >=
             (filters.priceRange[0] || 0) &&
           weiToEth(+asset.sell_orders[0].current_price) <=
-            (filters.priceRange[1] || 0)
+            (filters.priceRange[1] || Infinity)
 
         if (!matchesPriceRange) return false
       }
