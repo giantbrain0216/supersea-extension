@@ -58,7 +58,7 @@
   "bundleVerification": {
     "frameSelector": ".Bundle--summary-frame",
     "linkSelector": ".Bundle--items-list > a",
-    "headerSelector": "header"
+    "headerSelector": ".Panel--header"
   },
   "profileSummary": {
     "accountTitleSelector": ".AccountHeader--title",
