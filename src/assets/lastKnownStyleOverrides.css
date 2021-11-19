@@ -12,7 +12,8 @@ div[role='list'] div[role='listitem'] {
   min-height: 95px;
 }
 
-*[class*='FeatureTableCell'][width='300px']:nth-child(2) {
+*[class*='FeatureTableCell'][width='300px']:nth-child(2),
+*[class*='FeatureTableCell'][width='150px']:nth-child(2) {
   width: 500px !important;
   flex: 0 0 500px !important;
 }
