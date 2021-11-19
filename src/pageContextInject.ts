@@ -14,13 +14,24 @@ import { OrderSide } from 'opensea-js/lib/types'
         networkName: Network.Main,
       })
       try {
-        const order = await seaport.api.getOrder({
-          asset_contract_address: event.data.params.address,
-          token_id: event.data.params.tokenId,
-          side: OrderSide.Sell,
-        })
+        const asset = await fetch(
+          `https://api.opensea.io/api/v1/asset/${event.data.params.address}/${event.data.params.tokenId}`,
+        ).then((res) => res.json())
+        const order = asset.orders.filter(
+          (order: any) => order.side === OrderSide.Sell,
+        )[0]
+        const formattedOrder = Object.keys(order).reduce((acc: any, key) => {
+          const camelCasedKey = key.replace(/_([a-z])/g, (g) =>
+            g[1].toUpperCase(),
+          )
+          acc[camelCasedKey] = order[key]
+          return acc
+        }, {})
+        formattedOrder.maker = formattedOrder.maker.address
+        formattedOrder.taker = formattedOrder.taker.address
+        formattedOrder.feeRecipient = formattedOrder.feeRecipient.address
         await seaport.fulfillOrder({
-          order,
+          order: formattedOrder,
           accountAddress: (window as any).ethereum.selectedAddress,
         })
         window.postMessage({
@@ -28,6 +39,7 @@ import { OrderSide } from 'opensea-js/lib/types'
           params: { ...event.data.params },
         })
       } catch (error: any) {
+        console.error(error)
         window.postMessage({
           method: 'SuperSea__Buy__Error',
           params: { ...event.data.params, error },
