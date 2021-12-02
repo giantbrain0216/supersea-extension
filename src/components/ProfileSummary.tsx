@@ -13,14 +13,10 @@ import {
   useColorModeValue,
 } from '@chakra-ui/react'
 import Logo from './Logo'
-import {
-  fetchAllCollectionsForUser,
-  fetchFloorPrice,
-  Floor,
-} from '../utils/api'
+import { fetchAllCollectionsForUser, fetchFloorPrice } from '../utils/api'
 import EthereumIcon from './EthereumIcon'
 
-const ProfileSummary = ({ address }: { address: string }) => {
+const ProfileSummary = ({ shortenedAddress }: { shortenedAddress: string }) => {
   const [active, setActive] = useState(false)
   const [progress, setProgress] = useState<{
     total: number
@@ -32,6 +28,14 @@ const ProfileSummary = ({ address }: { address: string }) => {
   useEffect(() => {
     if (!active) return
     ;(async () => {
+      const serverRender = await fetch(
+        window.location.href.split(/[?#]/)[0],
+      ).then((res) => res.text())
+      const address = (serverRender.match(
+        new RegExp(`${shortenedAddress.replace('...', '[a-z0-9]+?')}`, 'i'),
+      ) || [])[0]
+      if (!address) return
+
       const collections = await fetchAllCollectionsForUser(address)
       await Promise.all(
         collections.map(async ({ slug, ownedCount }) => {
@@ -50,7 +54,7 @@ const ProfileSummary = ({ address }: { address: string }) => {
         }),
       )
     })()
-  }, [address, active])
+  }, [shortenedAddress, active])
 
   return (
     <Box px={3} width="100vw" maxWidth="480px">

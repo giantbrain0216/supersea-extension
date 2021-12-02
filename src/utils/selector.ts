@@ -27,6 +27,7 @@ export type Selectors = {
   profileSummary: {
     accountTitleSelector: string
     accountEnsNameSelector: string
+    shortenedAddressSelector: string
   }
   searchResults: {
     menuSelector: string

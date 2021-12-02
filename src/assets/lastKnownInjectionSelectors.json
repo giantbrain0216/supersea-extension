@@ -62,7 +62,8 @@
   },
   "profileSummary": {
     "accountTitleSelector": ".AccountHeader--member-date--text",
-    "accountEnsNameSelector": ".AccountHeader--name"
+    "accountEnsNameSelector": ".AccountHeader--name",
+    "shortenedAddressSelector": ".AccountHeader--address"
   },
   "searchResults": {
     "menuSelector": "*[class*=\"collection__DivContainer\"] ul[class*=\"Menureact__MenuBase\"]",
