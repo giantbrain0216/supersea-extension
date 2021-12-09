@@ -1,42 +1,52 @@
 /* global chrome */
 import { gql } from 'graphql-request'
-import _ from 'lodash'
 import queryString from 'query-string'
 
-let savedOpenSeaHeaders: Record<string, string> = {}
-const HEADERS_OF_INTEREST = [
-  'Authorization',
-  'X-API-KEY',
-  'X-VIEWER-ADDRESS',
-  'X-BUILD-ID',
-]
-
-// Capture API key headers from OpenSea for more favorable rate limits
-// when performing custom graphql requests
+const pendingOpenSeaRequestBodies: Record<string, string> = {}
 chrome.webRequest.onBeforeSendHeaders.addListener(
-  ({ requestHeaders, tabId }) => {
-    if (requestHeaders && tabId) {
-      const keyedHeaders = _.keyBy(requestHeaders, 'name')
-      if (keyedHeaders['x-signed-query']?.value === 'SuperSea') {
-        return {
-          requestHeaders: requestHeaders.filter(
-            ({ name }) => name !== 'x-signed-query',
-          ),
-        }
+  ({ requestId, requestHeaders, url }) => {
+    const body = pendingOpenSeaRequestBodies[requestId]
+    if (body) {
+      delete pendingOpenSeaRequestBodies[requestId]
+      const bodyData = JSON.parse(body)
+      if (bodyData.id) {
+        chrome.storage.local.get(
+          ['openSeaGraphQlRequests'],
+          ({ openSeaGraphQlRequests }) => {
+            // TODO: Handle quota exceeded?
+            chrome.storage.local.set({
+              openSeaGraphQlRequests: {
+                ...openSeaGraphQlRequests,
+                [bodyData.id]: {
+                  url,
+                  body,
+                  headers: requestHeaders,
+                },
+              },
+            })
+          },
+        )
       }
-      savedOpenSeaHeaders = HEADERS_OF_INTEREST.reduce<Record<string, string>>(
-        (acc, header) => {
-          acc[header] =
-            keyedHeaders[header]?.value || savedOpenSeaHeaders[header]
-          return acc
-        },
-        {},
-      )
-      chrome.storage.local.set({ openSeaHeaders: savedOpenSeaHeaders })
     }
   },
   { urls: ['https://api.opensea.io/*'] },
   ['requestHeaders'],
+)
+chrome.webRequest.onBeforeRequest.addListener(
+  ({ tabId, url, requestId, requestBody }) => {
+    if (
+      typeof tabId === 'number' &&
+      /graphql\/$/.test(url) &&
+      requestBody?.raw?.length
+    ) {
+      const decoder = new TextDecoder('utf-8')
+      pendingOpenSeaRequestBodies[requestId] = decoder.decode(
+        requestBody.raw[0].bytes,
+      )
+    }
+  },
+  { urls: ['https://api.opensea.io/*'] },
+  ['requestBody'],
 )
 
 const refreshTokenMutation = gql`
@@ -82,7 +92,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       })
   } else if (request.method === 'getUser') {
     // Can't use graphl-request because it depends on XMLHttpRequest,
-    // which isn't available in backgtround scripts
+    // which isn't available in background scripts
     fetch('https://api.nonfungible.tools/graphql', {
       headers: {
         'content-type': 'application/json',
@@ -100,21 +110,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         sendResponse({ accessToken, role: account?.role || 'FREE' })
       })
+  } else if (request.method === 'notify') {
+    chrome.notifications.create(
+      request.params.id,
+      request.params.options,
+      (notifiedId) => {
+        if (request.params.openOnClick) {
+          chrome.notifications.onClicked.addListener((clickedId) => {
+            if (clickedId === notifiedId) {
+              chrome.tabs.create({ url: request.params.openOnClick })
+              chrome.notifications.clear(clickedId)
+            }
+          })
+        }
+        sendResponse()
+      },
+    )
   }
   return true
 })
-
-chrome.webRequest.onResponseStarted.addListener(
-  ({ responseHeaders }) => {
-    const rateLimitHeader =
-      responseHeaders &&
-      responseHeaders.find(({ name }) => name === 'x-ratelimit-remaining')
-    if (rateLimitHeader) {
-      chrome.storage.local.set({
-        openSeaRateLimitRemaining: +(rateLimitHeader.value || 0),
-      })
-    }
-  },
-  { urls: ['https://api.opensea.io/*'] },
-  ['responseHeaders'],
-)

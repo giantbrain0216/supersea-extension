@@ -47,6 +47,7 @@ import { selectElement } from '../utils/selector'
 
 export const HEIGHT = 85
 export const LIST_HEIGHT = 62
+export const LIST_WIDTH = 140
 const MEMBERSHIP_ADDRESS = '0x24e047001f0ac15f72689d3f5cd0b0f52b1abdf9'
 
 const replaceImageRateLimit = RateLimit(3)
@@ -78,6 +79,8 @@ export const RARITY_TYPES = [
     color: { light: 'gray.200', dark: 'gray.500' },
   },
 ]
+
+export type RarityName = typeof RARITY_TYPES[number]['name']
 
 type Rarity = {
   isRanked: boolean
@@ -337,7 +340,7 @@ const AssetInfo = ({
     >
       <Flex
         height={type === 'list' ? `${LIST_HEIGHT}px` : `${HEIGHT}px`}
-        minWidth={type === 'list' ? '140px' : 0}
+        minWidth={type === 'list' ? `${LIST_WIDTH}px` : 0}
         transition="background 250ms ease"
         position={type === 'grid' ? 'absolute' : 'relative'}
         bottom={type === 'grid' ? 0 : undefined}

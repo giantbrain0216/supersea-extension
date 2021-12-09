@@ -172,7 +172,7 @@ const TraitSelect = ({
           }}
         />
       </Box>
-      <Flex flexWrap="wrap" py="3">
+      <Flex flexWrap="wrap" py={value.length ? 3 : 0}>
         {value.map((val) => {
           const { groupName, value: name } = JSON.parse(val)
           return (
