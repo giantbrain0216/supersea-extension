@@ -111,6 +111,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         sendResponse({ accessToken, role: account?.role || 'FREE' })
       })
   } else if (request.method === 'notify') {
+    // Svg images not supported in notifications
+    if (request.params.options.iconUrl.endsWith('.svg')) {
+      request.params.options.iconUrl = chrome.runtime.getURL('icon.png')
+    }
     chrome.notifications.create(
       request.params.id,
       request.params.options,

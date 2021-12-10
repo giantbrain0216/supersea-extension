@@ -1,4 +1,4 @@
-import { HStack, Box, Flex, Text, Image } from '@chakra-ui/react'
+import { HStack, Box, Flex, Text, Image, LinkOverlay } from '@chakra-ui/react'
 import { useRef, useState } from 'react'
 import { readableEthValue } from '../../utils/ethereum'
 import AssetInfo, { LIST_HEIGHT, LIST_WIDTH } from '../AssetInfo'
@@ -41,12 +41,17 @@ const MatchedAssetListing = ({ asset }: { asset: MatchedAsset }) => {
       ) : (
         <Box height={LIST_HEIGHT} width={LIST_WIDTH} />
       )}
-      <HStack flex="1 1 auto" spacing="3">
+      <HStack flex="1 1 auto" spacing="3" position="relative">
         <Image src={asset.image} width="48px" height="48px" borderRadius="md" />
         <Box>
-          <Text my="0" fontSize="sm" fontWeight="500">
-            {asset.name}
-          </Text>
+          <LinkOverlay
+            href={`/assets/${asset.contractAddress}/${asset.tokenId}`}
+            target="_blank"
+          >
+            <Text my="0" fontSize="sm" fontWeight="500">
+              {asset.name}
+            </Text>
+          </LinkOverlay>
           <Box fontSize="sm" opacity="0.5">
             <TimeAgo date={new Date(`${asset.timestamp}Z`)} />
           </Box>

@@ -126,7 +126,6 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
                   },
                 )
               })
-
               if (assets.length) {
                 setMatchedAssets((prev) => [...assets, ...prev])
               }
@@ -160,6 +159,11 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
         addedNotifiers={activeNotifiers}
         onAddNotifier={(notifier) => {
           setActiveNotifiers((notifiers) => [...notifiers, notifier])
+        }}
+        onRemoveNotifier={(id) => {
+          setActiveNotifiers((notifiers) =>
+            notifiers.filter((n) => n.id !== id),
+          )
         }}
         matchedAssets={matchedAssets}
       />

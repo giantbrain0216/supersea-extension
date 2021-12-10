@@ -1,8 +1,12 @@
-import React from 'react'
+import React, { useState } from 'react'
+import { unstable_batchedUpdates } from 'react-dom'
 import {
   Heading,
   Text,
+  IconButton,
+  Box,
   Flex,
+  Icon,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -28,10 +32,11 @@ import {
 import EthereumIcon from '../EthereumIcon'
 import { RarityName, RARITY_TYPES } from '../AssetInfo'
 import TraitSelect from '../SearchResults/TraitSelect'
+import { BiRefresh } from 'react-icons/bi'
 import ScopedCSSPortal from '../ScopedCSSPortal'
-import { unstable_batchedUpdates } from 'react-dom'
 import MatchedAssetListing, { MatchedAsset } from './MatchedAssetListing'
 import { useExtensionConfig } from '../../utils/extensionConfig'
+import { DeleteIcon } from '@chakra-ui/icons'
 
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
@@ -46,18 +51,20 @@ export type Notifier = {
 const ListingNotifierModal = ({
   addedNotifiers,
   onAddNotifier,
+  onRemoveNotifier,
   matchedAssets,
   ...modalProps
 }: {
   addedNotifiers: Notifier[]
   onAddNotifier: (notifier: Notifier) => void
+  onRemoveNotifier: (id: string) => void
   matchedAssets: MatchedAsset[]
 } & Omit<React.ComponentProps<typeof Modal>, 'children'>) => {
-  const [notifierNumber, setNotifierNumber] = React.useState(0)
-  const [minPrice, setMinPrice] = React.useState('')
-  const [maxPrice, setMaxPrice] = React.useState('')
-  const [lowestRarity, setLowestRarity] = React.useState<RarityName>('Common')
-  const [traits, setTraits] = React.useState<string[]>([])
+  const [notifierNumber, setNotifierNumber] = useState(0)
+  const [minPrice, setMinPrice] = useState('')
+  const [maxPrice, setMaxPrice] = useState('')
+  const [lowestRarity, setLowestRarity] = useState<RarityName>('Common')
+  const [traits, setTraits] = useState<string[]>([])
 
   const borderColor = useColorModeValue('blackAlpha.300', 'whiteAlpha.300')
 
@@ -190,10 +197,10 @@ const ListingNotifierModal = ({
                   >
                     <Thead borderBottom="1px solid" borderColor={borderColor}>
                       <Tr>
-                        <Th>ID</Th>
                         <Th>Price Range</Th>
                         <Th>Lowest Rarity</Th>
                         <Th>Traits</Th>
+                        <Th></Th>
                       </Tr>
                     </Thead>
                     <Tbody>
@@ -201,9 +208,6 @@ const ListingNotifierModal = ({
                         ({ id, minPrice, maxPrice, lowestRarity, traits }) => {
                           return (
                             <Tr key={id}>
-                              <Td>
-                                <Text opacity="0.75">{id}</Text>
-                              </Td>
                               <Td>
                                 {(() => {
                                   if (minPrice === null && maxPrice === null) {
@@ -222,6 +226,16 @@ const ListingNotifierModal = ({
                                   : lowestRarity}
                               </Td>
                               <Td>{traits.length ? traits : 'Any'}</Td>
+                              <Td maxWidth="30px" textAlign="right">
+                                <IconButton
+                                  icon={<DeleteIcon />}
+                                  bg="transparent"
+                                  aria-label="delete"
+                                  onClick={() => {
+                                    onRemoveNotifier(id)
+                                  }}
+                                />
+                              </Td>
                             </Tr>
                           )
                         },
@@ -248,10 +262,25 @@ const ListingNotifierModal = ({
                   </Flex>
                 </VStack>
               ) : null}
-              <VStack alignItems="flex-start" width="100%">
-                <Heading as="h4" size="md" pt="3" pb="2">
-                  Matched Listings
-                </Heading>
+              <VStack alignItems="flex-start" width="100%" pt="3">
+                <Flex alignItems="center" width="100%" pb="2">
+                  <Heading as="h4" size="md">
+                    Matched Listings
+                  </Heading>
+                  {addedNotifiers.length ? (
+                    <Flex alignItems="center" opacity="0.7" ml="0.75em" pt="1">
+                      <Text fontSize="sm">Checking every 5 seconds</Text>
+                      <Icon
+                        as={BiRefresh}
+                        width="18px"
+                        height="18px"
+                        ml="0.25em"
+                        mt="-2px"
+                        animation="SuperSea__Rotate 4s linear infinite"
+                      ></Icon>
+                    </Flex>
+                  ) : null}
+                </Flex>
                 {matchedAssets.length ? (
                   <VStack spacing="2" alignItems="flex-start" width="100%">
                     {matchedAssets.slice(0, 30).map((asset) => {

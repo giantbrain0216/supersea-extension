@@ -81,3 +81,9 @@ div[role='list']
     opacity: 1;
   }
 }
+
+@keyframes SuperSea__Rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
