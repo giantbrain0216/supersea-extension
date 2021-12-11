@@ -38,6 +38,8 @@ import ScopedCSSPortal from '../ScopedCSSPortal'
 import MatchedAssetListing, { MatchedAsset } from './MatchedAssetListing'
 import { useExtensionConfig } from '../../utils/extensionConfig'
 import { DeleteIcon } from '@chakra-ui/icons'
+import { Trait } from '../../utils/api'
+import TraitTag from '../SearchResults/TraitTag'
 
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
@@ -54,11 +56,13 @@ const ListingNotifierModal = ({
   onAddNotifier,
   onRemoveNotifier,
   matchedAssets,
+  allTraits,
   ...modalProps
 }: {
   addedNotifiers: Notifier[]
-  onAddNotifier: (notifier: Notifier) => void
+  onAddNotifier: (notifier: Notifier) => Promise<void>
   onRemoveNotifier: (id: string) => void
+  allTraits?: Trait[]
   matchedAssets: MatchedAsset[]
 } & Omit<React.ComponentProps<typeof Modal>, 'children'>) => {
   const [notifierNumber, setNotifierNumber] = useState(0)
@@ -66,6 +70,7 @@ const ListingNotifierModal = ({
   const [maxPrice, setMaxPrice] = useState('')
   const [lowestRarity, setLowestRarity] = useState<RarityName>('Common')
   const [traits, setTraits] = useState<string[]>([])
+  const [creatingNotifier, setCreatingNotifier] = useState(false)
   const { colorMode } = useColorMode()
 
   const borderColor = useColorModeValue('blackAlpha.300', 'whiteAlpha.300')
@@ -149,7 +154,7 @@ const ListingNotifierModal = ({
               <FormControl>
                 <FormLabel fontSize="sm">Traits</FormLabel>
                 <TraitSelect
-                  traits={[]}
+                  traits={allTraits || []}
                   value={traits}
                   onChange={(traits) => {
                     setTraits(traits)
@@ -158,8 +163,10 @@ const ListingNotifierModal = ({
               </FormControl>
               <Flex justify="flex-end" width="100%">
                 <Button
-                  onClick={() => {
-                    onAddNotifier({
+                  isLoading={creatingNotifier}
+                  onClick={async () => {
+                    setCreatingNotifier(true)
+                    await onAddNotifier({
                       id: `${ALPHABET[notifierNumber % ALPHABET.length]}${
                         Math.floor(notifierNumber / ALPHABET.length) || ''
                       }`,
@@ -174,6 +181,7 @@ const ListingNotifierModal = ({
                       setLowestRarity('Common')
                       setTraits([])
                       setNotifierNumber((n) => n + 1)
+                      setCreatingNotifier(false)
                     })
                   }}
                 >
@@ -259,7 +267,22 @@ const ListingNotifierModal = ({
                                   </Tag>
                                 )}
                               </Td>
-                              <Td>{traits.length ? traits : 'Any'}</Td>
+                              <Td>
+                                {traits.length ? (
+                                  <Flex flexWrap="wrap">
+                                    {traits.map((trait) => {
+                                      return (
+                                        <TraitTag
+                                          key={trait}
+                                          traitJson={trait}
+                                        />
+                                      )
+                                    })}
+                                  </Flex>
+                                ) : (
+                                  'Any'
+                                )}
+                              </Td>
                               <Td maxWidth="30px" textAlign="right">
                                 <IconButton
                                   icon={<DeleteIcon />}

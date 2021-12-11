@@ -6,7 +6,11 @@ import ListingNotifierModal, { Notifier } from './ListingNotifierModal'
 import { MatchedAsset } from './MatchedAssetListing'
 import { readableEthValue, weiToEth } from '../../utils/ethereum'
 import { getExtensionConfig } from '../../utils/extensionConfig'
-import { fetchCollectionAddress, fetchRarities } from '../../utils/api'
+import {
+  fetchCollectionAddress,
+  fetchRaritiesWithTraits,
+  Trait,
+} from '../../utils/api'
 import { determineRarityType, RARITY_TYPES } from '../../utils/rarity'
 
 const POLL_INTERVAL_MS = 5000
@@ -17,16 +21,19 @@ const createPollTime = (bufferSeconds = 0) =>
 type Rarities = {
   tokenRarity: Record<string, number>
   tokenCount: number
+  traits: Trait[]
 }
 
-const assetMatchesNotifier = ({
+const listingMatchesNotifier = ({
   asset,
   notifier,
   rarities,
+  assetsMatchingNotifier,
 }: {
   asset: MatchedAsset
   notifier: Notifier
   rarities: Rarities | null
+  assetsMatchingNotifier: Record<string, Record<string, boolean>>
 }) => {
   // Min Price
   if (
@@ -58,7 +65,17 @@ const assetMatchesNotifier = ({
       }
     }
   }
-
+  // Traits
+  if (notifier.traits) {
+    console.log(notifier.traits, assetsMatchingNotifier[notifier.id])
+    if (
+      !assetsMatchingNotifier[notifier.id] ||
+      !assetsMatchingNotifier[notifier.id][asset.tokenId]
+    ) {
+      console.log('asset does not match traits', asset, notifier.traits)
+      return false
+    }
+  }
   return true
 }
 
@@ -75,19 +92,23 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
   const addedListings = useRef<Record<string, boolean>>({}).current
   const pollTimeRef = useRef<string | null>(null)
   const [rarities, setRarities] = useState<Rarities | null>(null)
+  const assetsMatchingNotifier = useRef<
+    Record<string, Record<string, boolean>>
+  >({}).current
 
   // Load rarities and traits
   // TODO: Check if member
   useEffect(() => {
     ;(async () => {
       const address = await fetchCollectionAddress(collectionSlug)
-      const rarities = await fetchRarities(address)
+      const rarities = await fetchRaritiesWithTraits(address, [])
       setRarities({
         tokenRarity: _.mapValues(
           _.keyBy(rarities.tokens, 'iteratorID'),
           'rank',
         ),
         tokenCount: rarities.tokenCount,
+        traits: rarities.traits,
       })
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -157,7 +178,12 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
                 )
                 .filter((asset: MatchedAsset) => {
                   const matches = activeNotifiers.some((notifier) =>
-                    assetMatchesNotifier({ asset, notifier, rarities }),
+                    listingMatchesNotifier({
+                      asset,
+                      notifier,
+                      rarities,
+                      assetsMatchingNotifier,
+                    }),
                   )
                   if (!matches) {
                     console.log(
@@ -229,14 +255,32 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
       <ListingNotifierModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
+        allTraits={rarities?.traits}
         addedNotifiers={activeNotifiers}
-        onAddNotifier={(notifier) => {
+        onAddNotifier={async (notifier) => {
+          if (notifier.traits) {
+            const address = await fetchCollectionAddress(collectionSlug)
+            const { tokens } = await fetchRaritiesWithTraits(
+              address,
+              notifier.traits.map((val) => {
+                const { groupName, value } = JSON.parse(val)
+                return { key: groupName, value }
+              }),
+            )
+            assetsMatchingNotifier[notifier.id] = tokens.reduce<
+              Record<string, boolean>
+            >((acc, { iteratorID }) => {
+              acc[iteratorID] = true
+              return acc
+            }, {})
+          }
           setActiveNotifiers((notifiers) => [...notifiers, notifier])
         }}
         onRemoveNotifier={(id) => {
           setActiveNotifiers((notifiers) =>
             notifiers.filter((n) => n.id !== id),
           )
+          delete assetsMatchingNotifier[id]
         }}
         matchedAssets={matchedAssets}
       />
