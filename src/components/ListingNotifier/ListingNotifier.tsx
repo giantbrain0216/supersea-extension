@@ -66,13 +66,11 @@ const listingMatchesNotifier = ({
     }
   }
   // Traits
-  if (notifier.traits) {
-    console.log(notifier.traits, assetsMatchingNotifier[notifier.id])
+  if (notifier.traits.length) {
     if (
       !assetsMatchingNotifier[notifier.id] ||
       !assetsMatchingNotifier[notifier.id][asset.tokenId]
     ) {
-      console.log('asset does not match traits', asset, notifier.traits)
       return false
     }
   }
@@ -189,6 +187,7 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
                     console.log(
                       'no matching notifier',
                       asset,
+                      weiToEth(Number(asset.price)),
                       `https://opensea.io/assets/${asset.contractAddress}/${asset.tokenId}`,
                     )
                   }

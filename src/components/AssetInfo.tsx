@@ -390,7 +390,7 @@ const AssetInfo = ({
           <ScopedCSSPortal>
             <MenuList
               borderColor={useColorModeValue('gray.200', 'gray.800')}
-              zIndex={2}
+              zIndex="popover"
               color={useColorModeValue('black', 'white')}
               fontSize="sm"
             >

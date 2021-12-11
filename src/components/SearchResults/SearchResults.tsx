@@ -7,7 +7,7 @@ import {
   useColorModeValue,
 } from '@chakra-ui/react'
 import _ from 'lodash'
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { unstable_batchedUpdates } from 'react-dom'
 import {
   Asset,
