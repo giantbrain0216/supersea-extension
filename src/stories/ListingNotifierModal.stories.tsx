@@ -23,8 +23,8 @@ Default.args = {
   addedNotifiers: [
     {
       id: 'A',
-      minPrice: null,
-      maxPrice: null,
+      minPrice: 0.5,
+      maxPrice: 0.3,
       lowestRarity: 'Common',
       traits: [],
     },

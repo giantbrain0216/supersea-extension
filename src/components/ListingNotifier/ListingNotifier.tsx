@@ -4,15 +4,61 @@ import { Button, Flex } from '@chakra-ui/react'
 import Logo from '../Logo'
 import ListingNotifierModal, { Notifier } from './ListingNotifierModal'
 import { MatchedAsset } from './MatchedAssetListing'
-import { readableEthValue } from '../../utils/ethereum'
+import { readableEthValue, weiToEth } from '../../utils/ethereum'
 import { getExtensionConfig } from '../../utils/extensionConfig'
+import { fetchCollectionAddress, fetchRarities } from '../../utils/api'
+import { determineRarityType, RARITY_TYPES } from '../../utils/rarity'
 
 const POLL_INTERVAL_MS = 5000
 
 const createPollTime = (bufferSeconds = 0) =>
   new Date(Date.now() - bufferSeconds * 1000).toISOString().replace(/Z$/, '')
 
-const assetMatchesNotifier = (asset: MatchedAsset, notifier: Notifier) => {
+type Rarities = {
+  tokenRarity: Record<string, number>
+  tokenCount: number
+}
+
+const assetMatchesNotifier = ({
+  asset,
+  notifier,
+  rarities,
+}: {
+  asset: MatchedAsset
+  notifier: Notifier
+  rarities: Rarities | null
+}) => {
+  // Min Price
+  if (
+    notifier.minPrice !== null &&
+    weiToEth(Number(asset.price)) < notifier.minPrice
+  ) {
+    return false
+  }
+  // Max Price
+  if (
+    notifier.maxPrice !== null &&
+    weiToEth(Number(asset.price)) > notifier.maxPrice
+  ) {
+    return false
+  }
+  // Rarity
+  if (notifier.lowestRarity !== 'Common' && rarities) {
+    const rank = rarities.tokenRarity[asset.tokenId]
+    if (rank !== undefined) {
+      const assetRarity = determineRarityType(rank, rarities.tokenCount)
+      const notifierRarityIndex = RARITY_TYPES.findIndex(
+        ({ name }) => name === notifier.lowestRarity,
+      )
+      const assetRarityIndex = RARITY_TYPES.findIndex(
+        ({ name }) => name === assetRarity.name,
+      )
+      if (assetRarityIndex > notifierRarityIndex) {
+        return false
+      }
+    }
+  }
+
   return true
 }
 
@@ -28,7 +74,26 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
   const [matchedAssets, setMatchedAssets] = useState<MatchedAsset[]>([])
   const addedListings = useRef<Record<string, boolean>>({}).current
   const pollTimeRef = useRef<string | null>(null)
+  const [rarities, setRarities] = useState<Rarities | null>(null)
 
+  // Load rarities and traits
+  // TODO: Check if member
+  useEffect(() => {
+    ;(async () => {
+      const address = await fetchCollectionAddress(collectionSlug)
+      const rarities = await fetchRarities(address)
+      setRarities({
+        tokenRarity: _.mapValues(
+          _.keyBy(rarities.tokens, 'iteratorID'),
+          'rank',
+        ),
+        tokenCount: rarities.tokenCount,
+      })
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collectionSlug])
+
+  // Set up polling
   useEffect(() => {
     let pollInterval: NodeJS.Timeout | null = null
     if (activeNotifiers.length === 0) {
@@ -90,11 +155,19 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
                 .filter(
                   (asset: MatchedAsset) => !addedListings[asset.listingId],
                 )
-                .filter((asset: MatchedAsset) =>
-                  activeNotifiers.some((notifier) =>
-                    assetMatchesNotifier(asset, notifier),
-                  ),
-                )
+                .filter((asset: MatchedAsset) => {
+                  const matches = activeNotifiers.some((notifier) =>
+                    assetMatchesNotifier({ asset, notifier, rarities }),
+                  )
+                  if (!matches) {
+                    console.log(
+                      'no matching notifier',
+                      asset,
+                      `https://opensea.io/assets/${asset.contractAddress}/${asset.tokenId}`,
+                    )
+                  }
+                  return matches
+                })
 
               assets.forEach((asset: MatchedAsset) => {
                 addedListings[asset.listingId] = true
@@ -142,7 +215,7 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
       pollInterval && clearInterval(pollInterval)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeNotifiers, collectionSlug])
+  }, [activeNotifiers, collectionSlug, rarities])
 
   return (
     <Flex justifyContent="flex-end" py="2">

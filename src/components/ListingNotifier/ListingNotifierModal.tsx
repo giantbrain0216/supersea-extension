@@ -4,7 +4,6 @@ import {
   Heading,
   Text,
   IconButton,
-  Box,
   Flex,
   Icon,
   Modal,
@@ -19,6 +18,7 @@ import {
   Input,
   useColorModeValue,
   VStack,
+  Tag,
   Select,
   Button,
   Table,
@@ -28,9 +28,10 @@ import {
   Tr,
   Td,
   Switch,
+  useColorMode,
 } from '@chakra-ui/react'
 import EthereumIcon from '../EthereumIcon'
-import { RarityName, RARITY_TYPES } from '../AssetInfo'
+import { RarityName, RARITY_TYPES } from '../../utils/rarity'
 import TraitSelect from '../SearchResults/TraitSelect'
 import { BiRefresh } from 'react-icons/bi'
 import ScopedCSSPortal from '../ScopedCSSPortal'
@@ -65,6 +66,7 @@ const ListingNotifierModal = ({
   const [maxPrice, setMaxPrice] = useState('')
   const [lowestRarity, setLowestRarity] = useState<RarityName>('Common')
   const [traits, setTraits] = useState<string[]>([])
+  const { colorMode } = useColorMode()
 
   const borderColor = useColorModeValue('blackAlpha.300', 'whiteAlpha.300')
 
@@ -213,17 +215,49 @@ const ListingNotifierModal = ({
                                   if (minPrice === null && maxPrice === null) {
                                     return 'Any'
                                   } else if (minPrice === null) {
-                                    return `< ${maxPrice}`
+                                    return (
+                                      <Text>
+                                        <EthereumIcon verticalAlign="top" />
+                                        {maxPrice}
+                                        {' or less'}
+                                      </Text>
+                                    )
                                   } else if (maxPrice === null) {
-                                    return `>= ${minPrice}`
+                                    return (
+                                      <Text>
+                                        <EthereumIcon verticalAlign="top" />
+                                        {minPrice}
+                                        {' or more'}
+                                      </Text>
+                                    )
                                   }
-                                  return `${minPrice} - ${maxPrice}`
+                                  return (
+                                    <Text>
+                                      <EthereumIcon verticalAlign="top" />
+                                      {minPrice}
+                                      <Text as="span" mx="0.4em">
+                                        -
+                                      </Text>
+                                      <EthereumIcon verticalAlign="top" />
+                                      {maxPrice}
+                                    </Text>
+                                  )
                                 })()}
                               </Td>
                               <Td>
-                                {lowestRarity === 'Common'
-                                  ? 'Any'
-                                  : lowestRarity}
+                                {lowestRarity === 'Common' ? (
+                                  'Any'
+                                ) : (
+                                  <Tag
+                                    bg={
+                                      RARITY_TYPES.find(
+                                        ({ name }) => name === lowestRarity,
+                                      )!.color[colorMode]
+                                    }
+                                  >
+                                    {lowestRarity}
+                                  </Tag>
+                                )}
                               </Td>
                               <Td>{traits.length ? traits : 'Any'}</Td>
                               <Td maxWidth="30px" textAlign="right">

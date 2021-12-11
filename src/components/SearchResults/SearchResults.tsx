@@ -18,10 +18,11 @@ import {
   Trait,
 } from '../../utils/api'
 import SearchAsset from './SearchAsset'
-import { HEIGHT as ASSET_INFO_HEIGHT, RARITY_TYPES } from '../AssetInfo'
+import { HEIGHT as ASSET_INFO_HEIGHT } from '../AssetInfo'
 import { useInView } from 'react-intersection-observer'
 import Filters, { FiltersType } from './Filters'
 import { weiToEth } from '../../utils/ethereum'
+import { determineRarityType, RARITY_TYPES } from '../../utils/rarity'
 
 const PLACEHOLDER_TOKENS = _.times(40, (num) => ({
   iteratorID: num,
@@ -117,8 +118,9 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
   // Tokens filtered with data that we have _before_ fetching the asset
   const preFilteredTokens = (tokens && address ? tokens : PLACEHOLDER_TOKENS)
     ?.filter(({ rank }) => {
+      const rarityType = determineRarityType(rank, tokenCount)
       const rarityIndex = RARITY_TYPES.findIndex(
-        ({ top }) => rank / tokenCount <= top,
+        ({ name }) => rarityType.name === name,
       )
       const highestRarityIndex = RARITY_TYPES.findIndex(
         ({ name }) => name === filters.highestRarity,
