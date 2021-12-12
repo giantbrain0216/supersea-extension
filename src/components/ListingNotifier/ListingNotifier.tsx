@@ -355,8 +355,8 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
   return (
     <Flex justifyContent="flex-end" py="2">
       <Button
-        rightIcon={<Logo width="24px" height="24px" flipped />}
-        iconSpacing="4"
+        rightIcon={<Logo width="20px" height="20px" flipped />}
+        iconSpacing="3"
         onClick={() => setModalOpen(true)}
       >
         Listing Notifiers
