@@ -206,25 +206,13 @@ const injectProfileSummary = async () => {
   const accountBanner = accountTitle?.parentElement
 
   if (!accountBanner || accountBanner.dataset[NODE_PROCESSED_DATA_KEY]) return
-  const addressSlug = window.location.pathname.split('/')[1]
-  if (addressSlug === 'account') {
-    accountBanner.dataset[NODE_PROCESSED_DATA_KEY] = '1'
-    const messageListener = (event: MessageEvent) => {
-      if (event.data.method === 'SuperSea__GetEthAddress__Success') {
-        window.removeEventListener('message', messageListener)
-        const container = document.createElement('div')
-        accountBanner.appendChild(container)
-        injectReact(
-          <ProfileSummary address={event.data.params.ethAddress} />,
-          container,
-        )
-      }
-    }
-    window.addEventListener('message', messageListener)
-    window.postMessage({
-      method: 'SuperSea__GetEthAddress',
-    })
-  }
+  accountBanner.dataset[NODE_PROCESSED_DATA_KEY] = '1'
+  const container = document.createElement('div')
+  accountBanner.appendChild(container)
+  const shortenedAddress = (document.querySelector(
+    selectors.profileSummary.shortenedAddressSelector,
+  ) as HTMLElement).innerText
+  injectReact(<ProfileSummary shortenedAddress={shortenedAddress} />, container)
 }
 
 const throttledInjectAssetInfo = _.throttle(injectAssetInfo, 250)
