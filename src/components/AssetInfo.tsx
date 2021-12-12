@@ -44,40 +44,14 @@ import { RateLimit } from 'async-sema'
 import BuyNowButton from './BuyNowButton'
 import LockedFeature from './LockedFeature'
 import { selectElement } from '../utils/selector'
+import { determineRarityType, RARITY_TYPES } from '../utils/rarity'
 
 export const HEIGHT = 85
 export const LIST_HEIGHT = 62
+export const LIST_WIDTH = 140
 const MEMBERSHIP_ADDRESS = '0x24e047001f0ac15f72689d3f5cd0b0f52b1abdf9'
 
 const replaceImageRateLimit = RateLimit(3)
-
-export const RARITY_TYPES = [
-  {
-    top: 0.001,
-    name: 'Legendary' as const,
-    color: { light: 'orange.200', dark: 'orange.500' },
-  },
-  {
-    top: 0.01,
-    name: 'Epic' as const,
-    color: { light: 'purple.200', dark: 'purple.500' },
-  },
-  {
-    top: 0.1,
-    name: 'Rare' as const,
-    color: { light: 'blue.200', dark: 'blue.500' },
-  },
-  {
-    top: 0.5,
-    name: 'Uncommon' as const,
-    color: { light: 'green.200', dark: 'green.500' },
-  },
-  {
-    top: Infinity,
-    name: 'Common' as const,
-    color: { light: 'gray.200', dark: 'gray.500' },
-  },
-]
 
 type Rarity = {
   isRanked: boolean
@@ -298,10 +272,7 @@ const AssetInfo = ({
                 isRanked: true,
                 tokenCount,
                 rank,
-                type:
-                  rank === 1
-                    ? RARITY_TYPES[0]
-                    : RARITY_TYPES.find(({ top }) => rank / tokenCount <= top)!,
+                type: determineRarityType(rank, tokenCount),
               })
               return
             }
@@ -337,7 +308,7 @@ const AssetInfo = ({
     >
       <Flex
         height={type === 'list' ? `${LIST_HEIGHT}px` : `${HEIGHT}px`}
-        minWidth={type === 'list' ? '140px' : 0}
+        minWidth={type === 'list' ? `${LIST_WIDTH}px` : 0}
         transition="background 250ms ease"
         position={type === 'grid' ? 'absolute' : 'relative'}
         bottom={type === 'grid' ? 0 : undefined}
@@ -419,7 +390,7 @@ const AssetInfo = ({
           <ScopedCSSPortal>
             <MenuList
               borderColor={useColorModeValue('gray.200', 'gray.800')}
-              zIndex={2}
+              zIndex="popover"
               color={useColorModeValue('black', 'white')}
               fontSize="sm"
             >

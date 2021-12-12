@@ -14,15 +14,18 @@ import {
 } from '@chakra-ui/react'
 import SelectSearch from 'react-select-search'
 import { Trait } from '../../utils/api'
+import TraitTag from './TraitTag'
 
 const TraitSelect = ({
   traits,
   value,
   onChange,
+  isDisabled,
 }: {
   traits: Trait[]
   value: string[]
   onChange: (value: string[]) => void
+  isDisabled: boolean
 }) => {
   const [focused, setFocused] = useState(false)
   const options = useMemo(() => {
@@ -75,6 +78,7 @@ const TraitSelect = ({
         <SelectSearch
           options={options as any}
           search
+          disabled={isDisabled}
           closeOnSelect
           multiple
           printOptions="on-focus"
@@ -172,29 +176,15 @@ const TraitSelect = ({
           }}
         />
       </Box>
-      <Flex flexWrap="wrap" py="3">
+      <Flex flexWrap="wrap" py={value.length ? 3 : 0}>
         {value.map((val) => {
-          const { groupName, value: name } = JSON.parse(val)
           return (
-            <Tag key={val} mr="2" mb="2" size="lg" fontSize="sm">
-              <Box py="6px" pr="1">
-                <Text
-                  fontSize="10px"
-                  fontWeight="600"
-                  textTransform="uppercase"
-                  opacity={0.5}
-                  mb="1px"
-                >
-                  {groupName}
-                </Text>
-                <TagLabel>{name}</TagLabel>
-              </Box>
-              <TagCloseButton
-                onClick={() => {
-                  onChange(value.filter((v) => v !== val))
-                }}
-              />
-            </Tag>
+            <TraitTag
+              key={val}
+              traitJson={val}
+              closeable
+              onClickClose={() => onChange(value.filter((v) => v !== val))}
+            />
           )
         })}
       </Flex>

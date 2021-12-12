@@ -30,7 +30,11 @@
     {
       "resources": ["static/js/pageContextInject.js"],
       "matches": ["https://*.opensea.io/*"]
+    },
+    {
+      "resources": ["notification.mp3"],
+      "matches": ["https://*.opensea.io/*"]
     }
   ],
-  "permissions": ["webRequest", "storage"]
+  "permissions": ["webRequest", "storage", "notifications"]
 }

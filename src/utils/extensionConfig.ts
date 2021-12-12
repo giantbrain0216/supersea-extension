@@ -3,16 +3,18 @@ import { useEffect, useState } from 'react'
 export type ExtensionConfig = {
   enabled: boolean
   quickBuyEnabled: boolean
+  notificationSounds: boolean
 }
 
 const DEFAULTS: ExtensionConfig = {
   enabled: true,
   quickBuyEnabled: false,
+  notificationSounds: true,
 }
 
 let configPromise: null | Promise<Record<string, any>> = null
-export const getExtensionConfig = async () => {
-  if (!configPromise) {
+export const getExtensionConfig = async (cached = true) => {
+  if (!configPromise || !cached) {
     configPromise = new Promise((resolve) => {
       if (process.env.NODE_ENV === 'production') {
         chrome.storage.local.get(['extensionConfig'], resolve)
@@ -22,7 +24,7 @@ export const getExtensionConfig = async () => {
     })
   }
   const val = await configPromise
-  return val?.extensionConfig || DEFAULTS
+  return { ...DEFAULTS, ...val?.extensionConfig }
 }
 
 export const saveExtensionConfig = (config: ExtensionConfig) => {

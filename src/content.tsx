@@ -9,9 +9,10 @@ import ProfileSummary from './components/ProfileSummary'
 import GlobalStyles from './components/GlobalStyles'
 import { getExtensionConfig } from './utils/extensionConfig'
 import { fetchGlobalCSS, fetchSelectors } from './utils/api'
-import { selectElement, Selectors } from './utils/selector'
+import { injectElement, selectElement, Selectors } from './utils/selector'
 import SearchResults from './components/SearchResults/SearchResults'
 import CollectionMenuItem from './components/CollectionMenuItem'
+import ListingNotifier from './components/ListingNotifier/ListingNotifier'
 
 const NODE_PROCESSED_DATA_KEY = '__SuperSea__Processed'
 
@@ -125,11 +126,7 @@ const injectAssetInfo = async () => {
     container.classList.add('SuperSea__AssetInfo')
     container.classList.add(`SuperSea__AssetInfo--${type}`)
     container.classList.add('SuperSea__AssetInfo--Unrendered')
-    if (selectorConfig.node.injectionMethod === 'prepend') {
-      node.prepend(container)
-    } else {
-      node.append(container)
-    }
+    injectElement(node, container, selectorConfig.node.injectionMethod)
     container.dataset['address'] = address
     container.dataset['tokenId'] = tokenId
     container.dataset['collectionSlug'] = collectionSlug
@@ -359,19 +356,44 @@ const injectCollectionMenu = async () => {
     )
   }
 }
-
 const throttledInjectCollectionMenu = _.throttle(injectCollectionMenu, 250)
+
+const injectListingNotifier = async () => {
+  const selectors = await fetchSelectors()
+  const node = document.querySelector(
+    selectors.listingNotifier.node.selector,
+  ) as HTMLElement | null
+  if (node && !node.dataset[NODE_PROCESSED_DATA_KEY]) {
+    node.dataset[NODE_PROCESSED_DATA_KEY] = '1'
+    const container = document.createElement('div')
+    container.classList.add('SuperSea__ListingNotifier')
+    const collectionSlug = window.location.pathname
+      .split('/')
+      .filter(Boolean)
+      .pop()!
+    injectElement(
+      node,
+      container,
+      selectors.listingNotifier.node.injectionMethod,
+    )
+    injectReact(<ListingNotifier collectionSlug={collectionSlug!} />, container)
+  }
+}
+
+const throttledInjectListingNotifier = _.throttle(injectListingNotifier, 250)
 
 const setupInjections = async () => {
   injectBundleVerification()
   injectAssetInfo()
   injectCollectionMenu()
+  injectListingNotifier()
 
   const observer = new MutationObserver(() => {
     throttledInjectBundleVerification()
     throttledInjectAssetInfo()
     throttledInjectCollectionMenu()
     throttledDestroyRemovedInjections()
+    throttledInjectListingNotifier()
   })
 
   observer.observe(document, {
