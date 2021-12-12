@@ -6,7 +6,7 @@ import {
   Text,
   IconButton,
   Flex,
-  Box,
+  Spinner,
   Icon,
   Modal,
   Checkbox,
@@ -62,6 +62,7 @@ const ListingNotifierModal = ({
   matchedAssets,
   allTraits,
   playSound,
+  pollStatus,
   onChangePlaySound,
   sendNotification,
   onChangeSendNotification,
@@ -75,6 +76,7 @@ const ListingNotifierModal = ({
   isSubscriber: boolean
   matchedAssets: MatchedAsset[]
   playSound: boolean
+  pollStatus: 'STARTING' | 'ACTIVE' | 'FAILED'
   onChangePlaySound: (playSound: boolean) => void
   sendNotification: boolean
   onChangeSendNotification: (sendNotification: boolean) => void
@@ -90,7 +92,6 @@ const ListingNotifierModal = ({
 
   const borderColor = useColorModeValue('blackAlpha.300', 'whiteAlpha.300')
   const rarityInputsDisabled = isRanked === false || !isSubscriber
-  console.log({ isRanked, isSubscriber })
 
   return (
     <ScopedCSSPortal>
@@ -391,19 +392,41 @@ const ListingNotifierModal = ({
                   <Heading as="h4" size="md">
                     Matched Listings
                   </Heading>
-                  {addedNotifiers.length ? (
-                    <Flex alignItems="center" opacity="0.7" ml="0.75em" pt="1">
-                      <Text fontSize="sm">Checking every 3 seconds</Text>
-                      <Icon
-                        as={BiRefresh}
-                        width="18px"
-                        height="18px"
-                        ml="0.25em"
-                        mt="-2px"
-                        animation="SuperSea__Rotate 4s linear infinite"
-                      ></Icon>
-                    </Flex>
-                  ) : null}
+                  <Flex alignItems="center" opacity="0.7" ml="0.75em" pt="1">
+                    {(() => {
+                      if (addedNotifiers.length === 0) return null
+                      if (pollStatus === 'STARTING') {
+                        return (
+                          <>
+                            <Text fontSize="sm">Initializing</Text>
+                            <Spinner size="xs" ml="0.25em" />
+                          </>
+                        )
+                      } else if (pollStatus === 'ACTIVE') {
+                        return (
+                          <>
+                            <Text fontSize="sm">Checking every 3 seconds</Text>
+                            <Icon
+                              as={BiRefresh}
+                              width="18px"
+                              height="18px"
+                              ml="0.25em"
+                              mt="-2px"
+                              animation="SuperSea__Rotate 4s linear infinite"
+                            ></Icon>
+                          </>
+                        )
+                      } else if (pollStatus === 'FAILED') {
+                        return (
+                          <>
+                            <Text fontSize="sm" color="red.400">
+                              Unable to retrieve listings.
+                            </Text>
+                          </>
+                        )
+                      }
+                    })()}
+                  </Flex>
                 </Flex>
                 {matchedAssets.length ? (
                   <VStack spacing="2" alignItems="flex-start" width="100%">
@@ -417,11 +440,11 @@ const ListingNotifierModal = ({
                     })}
                   </VStack>
                 ) : (
-                  <Text opacity="0.5">
+                  <Text opacity="0.5" maxWidth="500px">
                     None yet
                     {addedNotifiers.length
-                      ? ''
-                      : ', add a notifier above to get started'}
+                      ? '. You can close this modal as long as you stay on the OpenSea activity tab.'
+                      : ', add a notifier above to get started.'}
                   </Text>
                 )}
               </VStack>

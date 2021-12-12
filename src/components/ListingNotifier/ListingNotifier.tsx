@@ -15,6 +15,7 @@ import { determineRarityType, RARITY_TYPES } from '../../utils/rarity'
 import { useUser } from '../../utils/user'
 
 const POLL_INTERVAL_MS = 3000
+const POLL_RETRIES = 15
 
 const createPollTime = (bufferSeconds = 0) =>
   new Date(Date.now() - bufferSeconds * 1000).toISOString().replace(/Z$/, '')
@@ -141,6 +142,12 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
     stateToRestore.sendNotification,
   )
 
+  const [pollStatus, setPollStatus] = useState<
+    'STARTING' | 'ACTIVE' | 'FAILED'
+  >('STARTING')
+
+  const retriesRef = useRef(0)
+
   const { isSubscriber } = useUser() || { isSubscriber: false }
 
   useEffect(() => {
@@ -199,7 +206,7 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
   // Set up polling
   useEffect(() => {
     let pollInterval: NodeJS.Timeout | null = null
-    if (activeNotifiers.length === 0) {
+    if (activeNotifiers.length === 0 || pollStatus === 'FAILED') {
       pollInterval !== null && clearInterval(pollInterval)
     } else {
       if (pollTimeRef.current === null) {
@@ -217,102 +224,115 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
               body.variables.eventTimestamp_Gt = pollTimeRef.current
               body.variables.eventTypes = ['AUCTION_CREATED']
 
-              const nextPollTime = createPollTime(1)
-              // TODO: handle errors, with retry as below
-              const res = await fetch(request.url, {
-                method: 'POST',
-                body: JSON.stringify(body),
-                headers: request.headers.reduce(
-                  (
-                    acc: Record<string, string>,
-                    { name, value }: { name: string; value: string },
-                  ) => {
-                    if (value) {
-                      acc[name] = value
+              const nextPollTime = createPollTime(POLL_INTERVAL_MS / 1000 / 2)
+              let fetchedAssets = null
+              try {
+                const res = await fetch(request.url, {
+                  method: 'POST',
+                  body: JSON.stringify(body),
+                  headers: request.headers.reduce(
+                    (
+                      acc: Record<string, string>,
+                      { name, value }: { name: string; value: string },
+                    ) => {
+                      if (value) {
+                        acc[name] = value
+                      }
+                      return acc
+                    },
+                    {},
+                  ),
+                })
+                const json = await res.json()
+                pollTimeRef.current = nextPollTime
+                fetchedAssets = json.data.assetEvents.edges.map(
+                  ({ node }: any) => {
+                    if (!node.assetQuantity?.asset) return null
+                    return {
+                      listingId: node.relayId,
+                      tokenId: node.assetQuantity.asset.tokenId,
+                      contractAddress:
+                        node.assetQuantity.asset.assetContract.address,
+                      name:
+                        node.assetQuantity.asset.name ||
+                        node.assetQuantity.asset.collection.name,
+                      image: node.assetQuantity.asset.displayImageUrl,
+                      price: node.price.quantityInEth,
+                      currency: node.price.asset.symbol,
+                      timestamp: node.eventTimestamp,
                     }
-                    return acc
                   },
-                  {},
-                ),
-              }).then((res) => res.json())
-              pollTimeRef.current = nextPollTime
-
-              const assets = res.data.assetEvents.edges
-                .map(({ node }: any) => {
-                  if (!node.assetQuantity?.asset) return null
-                  return {
-                    listingId: node.relayId,
-                    tokenId: node.assetQuantity.asset.tokenId,
-                    contractAddress:
-                      node.assetQuantity.asset.assetContract.address,
-                    name:
-                      node.assetQuantity.asset.name ||
-                      node.assetQuantity.asset.collection.name,
-                    image: node.assetQuantity.asset.displayImageUrl,
-                    price: node.price.quantityInEth,
-                    currency: node.price.asset.symbol,
-                    timestamp: node.eventTimestamp,
-                  }
-                })
-                .filter(Boolean)
-                .filter(
-                  (asset: MatchedAsset) => !addedListings[asset.listingId],
                 )
-                .filter((asset: MatchedAsset) => {
-                  const matches = activeNotifiers.some((notifier) =>
-                    listingMatchesNotifier({
-                      asset,
-                      notifier,
-                      rarities,
-                      assetsMatchingNotifier,
-                    }),
+              } catch (e) {
+                console.error('failed poll request', e)
+                chrome.storage.local.remove(['openSeaGraphQlRequests'])
+                retriesRef.current += 1
+              }
+              if (fetchedAssets) {
+                const filteredAssets = fetchedAssets
+                  .filter(Boolean)
+                  .filter(
+                    (asset: MatchedAsset) => !addedListings[asset.listingId],
                   )
-                  if (!matches) {
-                    console.log(
-                      'no matching notifier',
-                      asset,
-                      weiToEth(Number(asset.price)),
-                      `https://opensea.io/assets/${asset.contractAddress}/${asset.tokenId}`,
+                  .filter((asset: MatchedAsset) => {
+                    const matches = activeNotifiers.some((notifier) =>
+                      listingMatchesNotifier({
+                        asset,
+                        notifier,
+                        rarities,
+                        assetsMatchingNotifier,
+                      }),
                     )
-                  }
-                  return matches
-                })
-
-              assets.forEach((asset: MatchedAsset) => {
-                addedListings[asset.listingId] = true
-                if (sendNotification) {
-                  chrome.runtime.sendMessage(
-                    {
-                      method: 'notify',
-                      params: {
-                        id: asset.listingId,
-                        openOnClick: `https://opensea.io/assets/${asset.contractAddress}/${asset.tokenId}`,
-                        options: {
-                          title: 'SuperSea - New Listing',
-                          type: 'basic',
-                          iconUrl: asset.image,
-                          requireInteraction: true,
-                          silent: true,
-                          message: `${asset.name} (${readableEthValue(
-                            +asset.price,
-                          )} ${asset.currency})`,
+                    if (!matches) {
+                      console.log(
+                        'no matching notifier',
+                        asset,
+                        weiToEth(Number(asset.price)),
+                        `https://opensea.io/assets/${asset.contractAddress}/${asset.tokenId}`,
+                      )
+                    }
+                    return matches
+                  })
+                filteredAssets.forEach((asset: MatchedAsset) => {
+                  addedListings[asset.listingId] = true
+                  if (sendNotification) {
+                    chrome.runtime.sendMessage(
+                      {
+                        method: 'notify',
+                        params: {
+                          id: asset.listingId,
+                          openOnClick: `https://opensea.io/assets/${asset.contractAddress}/${asset.tokenId}`,
+                          options: {
+                            title: 'SuperSea - New Listing',
+                            type: 'basic',
+                            iconUrl: asset.image,
+                            requireInteraction: true,
+                            silent: true,
+                            message: `${asset.name} (${readableEthValue(
+                              +asset.price,
+                            )} ${asset.currency})`,
+                          },
                         },
                       },
-                    },
-                    () => {
-                      if (playSound) {
-                        throttledPlayNotificationSound()
-                      }
-                    },
-                  )
+                      () => {
+                        if (playSound) {
+                          throttledPlayNotificationSound()
+                        }
+                      },
+                    )
+                  }
+                })
+                setPollStatus('ACTIVE')
+                if (filteredAssets.length) {
+                  setMatchedAssets((prev) => [...filteredAssets, ...prev])
                 }
-              })
-              if (assets.length) {
-                setMatchedAssets((prev) => [...assets, ...prev])
               }
             } else {
               // Retry n number of times before showing error
-              console.log('no req yet')
+              retriesRef.current += 1
+            }
+            if (retriesRef.current >= POLL_RETRIES) {
+              setPollStatus('FAILED')
             }
           },
         )
@@ -323,7 +343,14 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
       pollInterval && clearInterval(pollInterval)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeNotifiers, collectionSlug, rarities, sendNotification, playSound])
+  }, [
+    activeNotifiers,
+    collectionSlug,
+    rarities,
+    sendNotification,
+    playSound,
+    pollStatus,
+  ])
 
   return (
     <Flex justifyContent="flex-end" py="2">
@@ -368,6 +395,7 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
         }}
         matchedAssets={matchedAssets}
         playSound={playSound}
+        pollStatus={pollStatus}
         onChangePlaySound={setPlaySound}
         sendNotification={sendNotification}
         onChangeSendNotification={setSendNotification}
