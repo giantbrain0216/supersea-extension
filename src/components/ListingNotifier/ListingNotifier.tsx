@@ -5,7 +5,6 @@ import Logo from '../Logo'
 import ListingNotifierModal, { Notifier } from './ListingNotifierModal'
 import { MatchedAsset } from './MatchedAssetListing'
 import { readableEthValue, weiToEth } from '../../utils/ethereum'
-import { getExtensionConfig } from '../../utils/extensionConfig'
 import {
   fetchCollectionAddress,
   fetchRaritiesWithTraits,
@@ -35,6 +34,10 @@ const listingMatchesNotifier = ({
   rarities: Rarities | null
   assetsMatchingNotifier: Record<string, Record<string, boolean>>
 }) => {
+  // Auctions
+  if (!notifier.includeAuctions && asset.currency === 'WETH') {
+    return false
+  }
   // Min Price
   if (
     notifier.minPrice !== null &&
@@ -92,6 +95,8 @@ type CachedState = {
   addedListings: Record<string, boolean>
   matchedAssets: MatchedAsset[]
   activeNotifiers: Notifier[]
+  playSound: boolean
+  sendNotification: boolean
 }
 let DEFAULT_STATE: CachedState = {
   collectionSlug: '',
@@ -101,6 +106,8 @@ let DEFAULT_STATE: CachedState = {
   pollTime: null,
   rarities: null,
   assetsMatchingNotifier: {},
+  playSound: true,
+  sendNotification: true,
 }
 let cachedState = DEFAULT_STATE
 
@@ -126,6 +133,11 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
     Record<string, Record<string, boolean>>
   >(stateToRestore.assetsMatchingNotifier).current
 
+  const [playSound, setPlaySound] = useState(stateToRestore.playSound)
+  const [sendNotification, setSendNotification] = useState(
+    stateToRestore.sendNotification,
+  )
+
   useEffect(() => {
     cachedState = {
       collectionSlug: collectionSlug,
@@ -135,6 +147,8 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
       addedListings,
       matchedAssets,
       activeNotifiers,
+      playSound,
+      sendNotification,
     }
   }, [
     activeNotifiers,
@@ -143,6 +157,8 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
     collectionSlug,
     matchedAssets,
     rarities,
+    playSound,
+    sendNotification,
   ])
 
   // Load rarities and traits
@@ -185,7 +201,7 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
               body.variables.eventTimestamp_Gt = pollTimeRef.current
               body.variables.eventTypes = ['AUCTION_CREATED']
 
-              const nextPollTime = createPollTime(2)
+              const nextPollTime = createPollTime(1)
               // TODO: handle errors, with retry as below
               const res = await fetch(request.url, {
                 method: 'POST',
@@ -248,33 +264,32 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
 
               assets.forEach((asset: MatchedAsset) => {
                 addedListings[asset.listingId] = true
-                chrome.runtime.sendMessage(
-                  {
-                    method: 'notify',
-                    params: {
-                      id: asset.listingId,
-                      openOnClick: `https://opensea.io/assets/${asset.contractAddress}/${asset.tokenId}`,
-                      options: {
-                        title: 'SuperSea - New Listing',
-                        type: 'basic',
-                        iconUrl: asset.image,
-                        requireInteraction: true,
-                        silent: true,
-                        message: `${asset.name} (${readableEthValue(
-                          +asset.price,
-                        )} ${asset.currency})`,
+                if (sendNotification) {
+                  chrome.runtime.sendMessage(
+                    {
+                      method: 'notify',
+                      params: {
+                        id: asset.listingId,
+                        openOnClick: `https://opensea.io/assets/${asset.contractAddress}/${asset.tokenId}`,
+                        options: {
+                          title: 'SuperSea - New Listing',
+                          type: 'basic',
+                          iconUrl: asset.image,
+                          requireInteraction: true,
+                          silent: true,
+                          message: `${asset.name} (${readableEthValue(
+                            +asset.price,
+                          )} ${asset.currency})`,
+                        },
                       },
                     },
-                  },
-                  async () => {
-                    const { notificationSounds } = await getExtensionConfig(
-                      false,
-                    )
-                    if (notificationSounds) {
-                      throttledPlayNotificationSound()
-                    }
-                  },
-                )
+                    () => {
+                      if (playSound) {
+                        throttledPlayNotificationSound()
+                      }
+                    },
+                  )
+                }
               })
               if (assets.length) {
                 setMatchedAssets((prev) => [...assets, ...prev])
@@ -292,7 +307,7 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
       pollInterval && clearInterval(pollInterval)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeNotifiers, collectionSlug, rarities])
+  }, [activeNotifiers, collectionSlug, rarities, sendNotification, playSound])
 
   return (
     <Flex justifyContent="flex-end" py="2">
@@ -334,6 +349,10 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
           delete assetsMatchingNotifier[id]
         }}
         matchedAssets={matchedAssets}
+        playSound={playSound}
+        onChangePlaySound={setPlaySound}
+        sendNotification={sendNotification}
+        onChangeSendNotification={setSendNotification}
       />
     </Flex>
   )

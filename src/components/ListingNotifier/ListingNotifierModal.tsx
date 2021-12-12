@@ -1,12 +1,15 @@
 import React, { useState } from 'react'
+import _ from 'lodash'
 import { unstable_batchedUpdates } from 'react-dom'
 import {
   Heading,
   Text,
   IconButton,
   Flex,
+  Box,
   Icon,
   Modal,
+  Checkbox,
   ModalOverlay,
   ModalContent,
   ModalBody,
@@ -36,18 +39,16 @@ import TraitSelect from '../SearchResults/TraitSelect'
 import { BiRefresh } from 'react-icons/bi'
 import ScopedCSSPortal from '../ScopedCSSPortal'
 import MatchedAssetListing, { MatchedAsset } from './MatchedAssetListing'
-import { useExtensionConfig } from '../../utils/extensionConfig'
 import { DeleteIcon } from '@chakra-ui/icons'
 import { Trait } from '../../utils/api'
 import TraitTag from '../SearchResults/TraitTag'
-
-const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
 export type Notifier = {
   id: string
   minPrice: number | null
   maxPrice: number | null
   lowestRarity: RarityName
+  includeAuctions: boolean
   traits: string[]
 }
 
@@ -57,6 +58,10 @@ const ListingNotifierModal = ({
   onRemoveNotifier,
   matchedAssets,
   allTraits,
+  playSound,
+  onChangePlaySound,
+  sendNotification,
+  onChangeSendNotification,
   ...modalProps
 }: {
   addedNotifiers: Notifier[]
@@ -64,18 +69,21 @@ const ListingNotifierModal = ({
   onRemoveNotifier: (id: string) => void
   allTraits?: Trait[]
   matchedAssets: MatchedAsset[]
+  playSound: boolean
+  onChangePlaySound: (playSound: boolean) => void
+  sendNotification: boolean
+  onChangeSendNotification: (sendNotification: boolean) => void
 } & Omit<React.ComponentProps<typeof Modal>, 'children'>) => {
-  const [notifierNumber, setNotifierNumber] = useState(0)
   const [minPrice, setMinPrice] = useState('')
   const [maxPrice, setMaxPrice] = useState('')
+  const [includeAuctions, setIncludeAuctions] = useState(false)
   const [lowestRarity, setLowestRarity] = useState<RarityName>('Common')
   const [traits, setTraits] = useState<string[]>([])
   const [creatingNotifier, setCreatingNotifier] = useState(false)
+
   const { colorMode } = useColorMode()
 
   const borderColor = useColorModeValue('blackAlpha.300', 'whiteAlpha.300')
-
-  const [extensionConfig, setExtensionConfig] = useExtensionConfig()
 
   return (
     <ScopedCSSPortal>
@@ -131,6 +139,14 @@ const ListingNotifierModal = ({
                     onChange={(e) => setMaxPrice(e.target.value)}
                   />
                 </FormControl>
+                <Flex height="40px" alignItems="center" pl="2">
+                  <Checkbox
+                    isChecked={includeAuctions}
+                    onChange={(e) => setIncludeAuctions(e.target.checked)}
+                  >
+                    Include auctions
+                  </Checkbox>
+                </Flex>
               </HStack>
               <FormControl>
                 <FormLabel fontSize="sm">Lowest Rarity</FormLabel>
@@ -167,12 +183,11 @@ const ListingNotifierModal = ({
                   onClick={async () => {
                     setCreatingNotifier(true)
                     await onAddNotifier({
-                      id: `${ALPHABET[notifierNumber % ALPHABET.length]}${
-                        Math.floor(notifierNumber / ALPHABET.length) || ''
-                      }`,
+                      id: _.uniqueId('notifier-'),
                       minPrice: minPrice ? Number(minPrice) : null,
                       maxPrice: maxPrice ? Number(maxPrice) : null,
                       lowestRarity,
+                      includeAuctions,
                       traits,
                     })
                     unstable_batchedUpdates(() => {
@@ -180,7 +195,6 @@ const ListingNotifierModal = ({
                       setMaxPrice('')
                       setLowestRarity('Common')
                       setTraits([])
-                      setNotifierNumber((n) => n + 1)
                       setCreatingNotifier(false)
                     })
                   }}
@@ -300,22 +314,30 @@ const ListingNotifierModal = ({
                     </Tbody>
                   </Table>
                   <Flex justifyContent="flex-end" width="100%" pt="2">
-                    <HStack alignItems="center" spacing="2">
-                      <Text fontSize="sm">Play sound</Text>
-                      <Switch
-                        isChecked={extensionConfig?.notificationSounds}
-                        onChange={() => {
-                          if (extensionConfig) {
-                            setExtensionConfig({
-                              ...extensionConfig,
-                              notificationSounds: !Boolean(
-                                extensionConfig?.notificationSounds,
-                              ),
-                            })
-                          }
-                        }}
-                      />
-                    </HStack>
+                    <VStack alignItems="flex-end" spacing="2">
+                      <HStack alignItems="center" spacing="2">
+                        <Text fontSize="sm" opacity="0.75">
+                          Play sound
+                        </Text>
+                        <Switch
+                          isChecked={playSound}
+                          onChange={(event) => {
+                            onChangePlaySound(event?.target.checked)
+                          }}
+                        />
+                      </HStack>
+                      <HStack alignItems="center" spacing="2">
+                        <Text fontSize="sm" opacity="0.75">
+                          Send Chrome notification
+                        </Text>
+                        <Switch
+                          isChecked={sendNotification}
+                          onChange={(event) => {
+                            onChangeSendNotification(event?.target.checked)
+                          }}
+                        />
+                      </HStack>
+                    </VStack>
                   </Flex>
                 </VStack>
               ) : null}
