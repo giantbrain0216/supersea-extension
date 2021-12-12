@@ -13,7 +13,7 @@ import {
 } from '../../utils/api'
 import { determineRarityType, RARITY_TYPES } from '../../utils/rarity'
 
-const POLL_INTERVAL_MS = 5000
+const POLL_INTERVAL_MS = 3000
 
 const createPollTime = (bufferSeconds = 0) =>
   new Date(Date.now() - bufferSeconds * 1000).toISOString().replace(/Z$/, '')
@@ -82,21 +82,73 @@ const throttledPlayNotificationSound = _.throttle(() => {
   audio.play()
 }, 1000)
 
+// Keep state cached so it's not lost when component is unmounted from
+// switching event type filters on OpenSea
+type CachedState = {
+  collectionSlug: string
+  assetsMatchingNotifier: Record<string, Record<string, boolean>>
+  rarities: Rarities | null
+  pollTime: string | null
+  addedListings: Record<string, boolean>
+  matchedAssets: MatchedAsset[]
+  activeNotifiers: Notifier[]
+}
+let DEFAULT_STATE: CachedState = {
+  collectionSlug: '',
+  activeNotifiers: [],
+  matchedAssets: [],
+  addedListings: {},
+  pollTime: null,
+  rarities: null,
+  assetsMatchingNotifier: {},
+}
+let cachedState = DEFAULT_STATE
+
 const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
   const [modalOpen, setModalOpen] = useState(false)
-  // Save in memory
-  const [activeNotifiers, setActiveNotifiers] = useState<Notifier[]>([])
-  const [matchedAssets, setMatchedAssets] = useState<MatchedAsset[]>([])
-  const addedListings = useRef<Record<string, boolean>>({}).current
-  const pollTimeRef = useRef<string | null>(null)
-  const [rarities, setRarities] = useState<Rarities | null>(null)
+
+  const stateToRestore =
+    cachedState.collectionSlug === collectionSlug ? cachedState : DEFAULT_STATE
+  const [activeNotifiers, setActiveNotifiers] = useState<Notifier[]>(
+    stateToRestore.activeNotifiers,
+  )
+  const [matchedAssets, setMatchedAssets] = useState<MatchedAsset[]>(
+    stateToRestore.matchedAssets,
+  )
+  const addedListings = useRef<Record<string, boolean>>(
+    stateToRestore.addedListings,
+  ).current
+  const pollTimeRef = useRef<string | null>(stateToRestore.pollTime)
+  const [rarities, setRarities] = useState<Rarities | null>(
+    stateToRestore.rarities,
+  )
   const assetsMatchingNotifier = useRef<
     Record<string, Record<string, boolean>>
-  >({}).current
+  >(stateToRestore.assetsMatchingNotifier).current
+
+  useEffect(() => {
+    cachedState = {
+      collectionSlug: collectionSlug,
+      assetsMatchingNotifier: assetsMatchingNotifier,
+      rarities,
+      pollTime: pollTimeRef.current,
+      addedListings,
+      matchedAssets,
+      activeNotifiers,
+    }
+  }, [
+    activeNotifiers,
+    addedListings,
+    assetsMatchingNotifier,
+    collectionSlug,
+    matchedAssets,
+    rarities,
+  ])
 
   // Load rarities and traits
   // TODO: Check if member
   useEffect(() => {
+    if (rarities) return
     ;(async () => {
       const address = await fetchCollectionAddress(collectionSlug)
       const rarities = await fetchRaritiesWithTraits(address, [])
@@ -110,7 +162,7 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
       })
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [collectionSlug])
+  }, [collectionSlug, rarities])
 
   // Set up polling
   useEffect(() => {

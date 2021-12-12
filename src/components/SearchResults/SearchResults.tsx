@@ -119,6 +119,7 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
   const preFilteredTokens = (tokens && address ? tokens : PLACEHOLDER_TOKENS)
     ?.filter(({ rank }) => {
       const rarityType = determineRarityType(rank, tokenCount)
+      if (!rarityType) return true
       const rarityIndex = RARITY_TYPES.findIndex(
         ({ name }) => rarityType.name === name,
       )

@@ -326,7 +326,7 @@ const ListingNotifierModal = ({
                   </Heading>
                   {addedNotifiers.length ? (
                     <Flex alignItems="center" opacity="0.7" ml="0.75em" pt="1">
-                      <Text fontSize="sm">Checking every 5 seconds</Text>
+                      <Text fontSize="sm">Checking every 3 seconds</Text>
                       <Icon
                         as={BiRefresh}
                         width="18px"
