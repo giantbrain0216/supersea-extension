@@ -20,10 +20,12 @@ const TraitSelect = ({
   traits,
   value,
   onChange,
+  isDisabled,
 }: {
   traits: Trait[]
   value: string[]
   onChange: (value: string[]) => void
+  isDisabled: boolean
 }) => {
   const [focused, setFocused] = useState(false)
   const options = useMemo(() => {
@@ -76,6 +78,7 @@ const TraitSelect = ({
         <SelectSearch
           options={options as any}
           search
+          disabled={isDisabled}
           closeOnSelect
           multiple
           printOptions="on-focus"

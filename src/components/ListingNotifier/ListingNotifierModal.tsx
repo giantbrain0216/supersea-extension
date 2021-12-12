@@ -42,6 +42,7 @@ import MatchedAssetListing, { MatchedAsset } from './MatchedAssetListing'
 import { DeleteIcon } from '@chakra-ui/icons'
 import { Trait } from '../../utils/api'
 import TraitTag from '../SearchResults/TraitTag'
+import LockedFeature from '../LockedFeature'
 
 export type Notifier = {
   id: string
@@ -56,6 +57,8 @@ const ListingNotifierModal = ({
   addedNotifiers,
   onAddNotifier,
   onRemoveNotifier,
+  isRanked,
+  isSubscriber,
   matchedAssets,
   allTraits,
   playSound,
@@ -68,6 +71,8 @@ const ListingNotifierModal = ({
   onAddNotifier: (notifier: Notifier) => Promise<void>
   onRemoveNotifier: (id: string) => void
   allTraits?: Trait[]
+  isRanked: boolean | null
+  isSubscriber: boolean
   matchedAssets: MatchedAsset[]
   playSound: boolean
   onChangePlaySound: (playSound: boolean) => void
@@ -84,6 +89,8 @@ const ListingNotifierModal = ({
   const { colorMode } = useColorMode()
 
   const borderColor = useColorModeValue('blackAlpha.300', 'whiteAlpha.300')
+  const rarityInputsDisabled = isRanked === false || !isSubscriber
+  console.log({ isRanked, isSubscriber })
 
   return (
     <ScopedCSSPortal>
@@ -143,14 +150,35 @@ const ListingNotifierModal = ({
                   <Checkbox
                     isChecked={includeAuctions}
                     onChange={(e) => setIncludeAuctions(e.target.checked)}
+                    borderColor={useColorModeValue(
+                      'blackAlpha.500',
+                      'whiteAlpha.500',
+                    )}
                   >
                     Include auctions
                   </Checkbox>
                 </Flex>
               </HStack>
               <FormControl>
-                <FormLabel fontSize="sm">Lowest Rarity</FormLabel>
+                <FormLabel fontSize="sm">
+                  <Text as="span" opacity={rarityInputsDisabled ? 0.75 : 1}>
+                    Lowest Rarity
+                  </Text>
+                  {(() => {
+                    if (isRanked === false) {
+                      return (
+                        <Tag verticalAlign="bottom" ml="0.5em" size="sm">
+                          Unranked
+                        </Tag>
+                      )
+                    } else if (!isSubscriber) {
+                      return <LockedFeature ml="0.5em" />
+                    }
+                    return null
+                  })()}
+                </FormLabel>
                 <Select
+                  isDisabled={rarityInputsDisabled}
                   borderColor="transparent"
                   bg={useColorModeValue('gray.100', 'whiteAlpha.200')}
                   value={lowestRarity}
@@ -168,8 +196,25 @@ const ListingNotifierModal = ({
                 </Select>
               </FormControl>
               <FormControl>
-                <FormLabel fontSize="sm">Traits</FormLabel>
+                <FormLabel fontSize="sm">
+                  <Text as="span" opacity={rarityInputsDisabled ? 0.75 : 1}>
+                    Traits
+                  </Text>
+                  {(() => {
+                    if (isRanked === false) {
+                      return (
+                        <Tag verticalAlign="bottom" ml="0.5em" size="sm">
+                          Unavailable
+                        </Tag>
+                      )
+                    } else if (!isSubscriber) {
+                      return <LockedFeature ml="0.5em" />
+                    }
+                    return null
+                  })()}
+                </FormLabel>
                 <TraitSelect
+                  isDisabled={rarityInputsDisabled}
                   traits={allTraits || []}
                   value={traits}
                   onChange={(traits) => {

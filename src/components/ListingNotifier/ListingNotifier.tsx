@@ -7,10 +7,12 @@ import { MatchedAsset } from './MatchedAssetListing'
 import { readableEthValue, weiToEth } from '../../utils/ethereum'
 import {
   fetchCollectionAddress,
+  fetchIsRanked,
   fetchRaritiesWithTraits,
   Trait,
 } from '../../utils/api'
 import { determineRarityType, RARITY_TYPES } from '../../utils/rarity'
+import { useUser } from '../../utils/user'
 
 const POLL_INTERVAL_MS = 3000
 
@@ -20,6 +22,7 @@ const createPollTime = (bufferSeconds = 0) =>
 type Rarities = {
   tokenRarity: Record<string, number>
   tokenCount: number
+  isRanked: boolean
   traits: Trait[]
 }
 
@@ -138,6 +141,8 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
     stateToRestore.sendNotification,
   )
 
+  const { isSubscriber } = useUser() || { isSubscriber: false }
+
   useEffect(() => {
     cachedState = {
       collectionSlug: collectionSlug,
@@ -167,15 +172,26 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
     if (rarities) return
     ;(async () => {
       const address = await fetchCollectionAddress(collectionSlug)
-      const rarities = await fetchRaritiesWithTraits(address, [])
-      setRarities({
-        tokenRarity: _.mapValues(
-          _.keyBy(rarities.tokens, 'iteratorID'),
-          'rank',
-        ),
-        tokenCount: rarities.tokenCount,
-        traits: rarities.traits,
-      })
+      if (isSubscriber) {
+        const rarities = await fetchRaritiesWithTraits(address, [])
+        setRarities({
+          tokenRarity: _.mapValues(
+            _.keyBy(rarities.tokens, 'iteratorID'),
+            'rank',
+          ),
+          tokenCount: rarities.tokenCount,
+          isRanked: rarities.tokenCount > 0,
+          traits: rarities.traits,
+        })
+      } else {
+        const isRanked = await fetchIsRanked(address)
+        setRarities({
+          tokenRarity: {},
+          tokenCount: 0,
+          isRanked: Boolean(isRanked),
+          traits: [],
+        })
+      }
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [collectionSlug, rarities])
@@ -322,6 +338,8 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         allTraits={rarities?.traits}
+        isRanked={rarities ? rarities.isRanked : null}
+        isSubscriber={isSubscriber}
         addedNotifiers={activeNotifiers}
         onAddNotifier={async (notifier) => {
           if (notifier.traits) {
