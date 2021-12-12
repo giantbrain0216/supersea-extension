@@ -226,7 +226,8 @@ const floorPriceLoader = new DataLoader(
   },
   {
     maxBatchSize: 1,
-    cacheKeyFn: ({ address, tokenId }) => {
+    cacheKeyFn: ({ address, tokenId, collectionSlug }) => {
+      if (collectionSlug) return collectionSlug
       if (OPENSEA_SHARED_CONTRACT_ADDRESSES.includes(address))
         return `${address}/${tokenId.slice(
           0,

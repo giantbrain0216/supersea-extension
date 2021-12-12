@@ -9,7 +9,7 @@ const GlobalStyles = () => {
           ':host, :root': theme.__cssVars,
         })}
       />
-      <ScopedCSSReset />,
+      <ScopedCSSReset />
     </>
   )
 }
