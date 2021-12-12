@@ -77,6 +77,35 @@
     "node": {
       "selector": "*[class*=\"collection\"] *[class*=\"PriceHistoryreact__DivContainer\"]",
       "injectionMethod": "insertAfter"
+    },
+    "api": {
+      "staticVariables": {
+        "archetype": null,
+        "categories": null,
+        "chains": null,
+        "count": 100,
+        "cursor": null,
+        "eventTypes": ["AUCTION_CREATED"],
+        "identity": null,
+        "showAll": true
+      },
+      "variablePaths": {
+        "collectionSlug": "collections",
+        "timestamp": "eventTimestamp_Gt"
+      },
+      "resultPaths": {
+        "edges": "data.assetEvents.edges",
+        "asset": "node.assetQuantity.asset",
+        "listingId": "node.relayId",
+        "tokenId": "node.assetQuantity.asset.tokenId",
+        "contractAddress": "node.assetQuantity.asset.assetContract.address",
+        "name": "node.assetQuantity.asset.name",
+        "collectionName": "node.assetQuantity.asset.collection.name",
+        "image": "node.assetQuantity.asset.displayImageUrl",
+        "price": "node.price.quantityInEth",
+        "currency": "node.price.asset.symbol",
+        "timestamp": "node.eventTimestamp"
+      }
     }
   }
 }

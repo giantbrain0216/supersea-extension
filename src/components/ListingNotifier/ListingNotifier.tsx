@@ -9,6 +9,7 @@ import {
   fetchCollectionAddress,
   fetchIsRanked,
   fetchRaritiesWithTraits,
+  fetchSelectors,
   Trait,
 } from '../../utils/api'
 import { determineRarityType, RARITY_TYPES } from '../../utils/rarity'
@@ -218,11 +219,17 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
           async ({ openSeaGraphQlRequests }) => {
             const request = openSeaGraphQlRequests['EventHistoryPollQuery']
             if (request) {
+              const selectors = await fetchSelectors()
               const body = JSON.parse(request.body)
-              // TODO: Get variable paths and static values from remote
-              body.variables.collections = [collectionSlug]
-              body.variables.eventTimestamp_Gt = pollTimeRef.current
-              body.variables.eventTypes = ['AUCTION_CREATED']
+              body.variables = {
+                ...body.variables,
+                ...selectors.listingNotifier.api.staticVariables,
+                [selectors.listingNotifier.api.variablePaths.collectionSlug]: [
+                  collectionSlug,
+                ],
+                [selectors.listingNotifier.api.variablePaths.timestamp]:
+                  pollTimeRef.current,
+              }
 
               const nextPollTime = createPollTime(POLL_INTERVAL_MS / 1000 / 2)
               let fetchedAssets = null
@@ -245,24 +252,22 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
                 })
                 const json = await res.json()
                 pollTimeRef.current = nextPollTime
-                fetchedAssets = json.data.assetEvents.edges.map(
-                  ({ node }: any) => {
-                    if (!node.assetQuantity?.asset) return null
-                    return {
-                      listingId: node.relayId,
-                      tokenId: node.assetQuantity.asset.tokenId,
-                      contractAddress:
-                        node.assetQuantity.asset.assetContract.address,
-                      name:
-                        node.assetQuantity.asset.name ||
-                        node.assetQuantity.asset.collection.name,
-                      image: node.assetQuantity.asset.displayImageUrl,
-                      price: node.price.quantityInEth,
-                      currency: node.price.asset.symbol,
-                      timestamp: node.eventTimestamp,
-                    }
-                  },
-                )
+                const paths = selectors.listingNotifier.api.resultPaths
+                fetchedAssets = _.get(json, paths.edges).map((edge: any) => {
+                  if (!_.get(edge, paths.asset)) return null
+                  return {
+                    listingId: _.get(edge, paths.listingId),
+                    tokenId: _.get(edge, paths.tokenId),
+                    contractAddress: _.get(edge, paths.contractAddress),
+                    name:
+                      _.get(edge, paths.name) ||
+                      _.get(edge, paths.collectionName),
+                    image: _.get(edge, paths.image),
+                    price: _.get(edge, paths.price),
+                    currency: _.get(edge, paths.currency),
+                    timestamp: _.get(edge, paths.timestamp),
+                  }
+                })
               } catch (e) {
                 console.error('failed poll request', e)
                 chrome.storage.local.remove(['openSeaGraphQlRequests'])
@@ -283,14 +288,6 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
                         assetsMatchingNotifier,
                       }),
                     )
-                    if (!matches) {
-                      console.log(
-                        'no matching notifier',
-                        asset,
-                        weiToEth(Number(asset.price)),
-                        `https://opensea.io/assets/${asset.contractAddress}/${asset.tokenId}`,
-                      )
-                    }
                     return matches
                   })
                 filteredAssets.forEach((asset: MatchedAsset) => {

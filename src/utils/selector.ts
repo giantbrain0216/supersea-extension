@@ -38,7 +38,29 @@ export type Selectors = {
       as: string
     }
   }
-  listingNotifier: { node: InjectionSelector }
+  listingNotifier: {
+    node: InjectionSelector
+    api: {
+      staticVariables: Record<string, any>
+      variablePaths: {
+        collectionSlug: string
+        timestamp: string
+      }
+      resultPaths: {
+        edges: string
+        asset: string
+        listingId: string
+        tokenId: string
+        contractAddress: string
+        name: string
+        collectionName: string
+        image: string
+        price: string
+        currency: string
+        timestamp: string
+      }
+    }
+  }
 }
 
 export const selectElement = (
