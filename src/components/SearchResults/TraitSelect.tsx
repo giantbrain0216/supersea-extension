@@ -25,7 +25,7 @@ const TraitSelect = ({
   traits: Trait[]
   value: string[]
   onChange: (value: string[]) => void
-  isDisabled: boolean
+  isDisabled?: boolean
 }) => {
   const [focused, setFocused] = useState(false)
   const options = useMemo(() => {
