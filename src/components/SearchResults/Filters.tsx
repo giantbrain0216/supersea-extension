@@ -14,18 +14,18 @@ import {
   Button,
   Text,
 } from '@chakra-ui/react'
-import { RARITY_TYPES } from '../AssetInfo'
 import ButtonOptions from '../ButtonOptions'
 import Logo from '../Logo'
 import EthereumIcon from '../EthereumIcon'
 import { motion } from 'framer-motion'
 import { Trait } from '../../utils/api'
 import TraitSelect from './TraitSelect'
+import { RarityName, RARITY_TYPES } from '../../utils/rarity'
 
 export type FiltersType = {
   status: 'buyNow'[]
   priceRange: [number | undefined, number | undefined]
-  highestRarity: typeof RARITY_TYPES[number]['name']
+  highestRarity: RarityName
   traits: string[]
 }
 

@@ -32,7 +32,7 @@
         "hierarchy": "either"
       },
       "image": {
-        "selector": ".Image--image",
+        "selector": ".Image--image, .SuperSea__Image",
         "hierarchy": "child"
       }
     },
@@ -61,8 +61,9 @@
     "headerSelector": ".Panel--header"
   },
   "profileSummary": {
-    "accountTitleSelector": ".AccountHeader--title",
-    "accountEnsNameSelector": ".AccountHeader--name"
+    "accountTitleSelector": ".AccountHeader--member-date--text",
+    "accountEnsNameSelector": ".AccountHeader--name",
+    "shortenedAddressSelector": ".AccountHeader--address"
   },
   "searchResults": {
     "menuSelector": "*[class*=\"collection__DivContainer\"] ul[class*=\"Menureact__MenuBase\"]",
@@ -70,6 +71,41 @@
     "route": {
       "url": "/collection?collectionSlug=[COLLECTION_SLUG]&tab=supersea",
       "as": "/collection/[COLLECTION_SLUG]?tab=supersea"
+    }
+  },
+  "listingNotifier": {
+    "node": {
+      "selector": "*[class*=\"collection\"] *[class*=\"PriceHistoryreact__DivContainer\"]",
+      "injectionMethod": "insertAfter"
+    },
+    "api": {
+      "staticVariables": {
+        "archetype": null,
+        "categories": null,
+        "chains": null,
+        "count": 100,
+        "cursor": null,
+        "eventTypes": ["AUCTION_CREATED"],
+        "identity": null,
+        "showAll": true
+      },
+      "variablePaths": {
+        "collectionSlug": "collections",
+        "timestamp": "eventTimestamp_Gt"
+      },
+      "resultPaths": {
+        "edges": "data.assetEvents.edges",
+        "asset": "node.assetQuantity.asset",
+        "listingId": "node.relayId",
+        "tokenId": "node.assetQuantity.asset.tokenId",
+        "contractAddress": "node.assetQuantity.asset.assetContract.address",
+        "name": "node.assetQuantity.asset.name",
+        "collectionName": "node.assetQuantity.asset.collection.name",
+        "image": "node.assetQuantity.asset.displayImageUrl",
+        "price": "node.price.quantityInEth",
+        "currency": "node.price.asset.symbol",
+        "timestamp": "node.eventTimestamp"
+      }
     }
   }
 }

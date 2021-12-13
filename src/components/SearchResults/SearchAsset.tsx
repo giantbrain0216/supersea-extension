@@ -34,7 +34,6 @@ const SearchAsset = ({
       key={tokenId}
       position="relative"
       paddingBottom={ASSET_INFO_HEIGHT}
-      ref={containerRef}
       animation="SuperSea__FadeIn 350ms ease"
     >
       <LinkBox>
