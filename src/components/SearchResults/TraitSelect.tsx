@@ -1,20 +1,13 @@
 import _ from 'lodash'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { CheckIcon } from '@chakra-ui/icons'
 import { FaListUl } from 'react-icons/fa'
-import {
-  Input,
-  useColorModeValue,
-  Text,
-  Box,
-  Flex,
-  Tag,
-  TagLabel,
-  TagCloseButton,
-} from '@chakra-ui/react'
+import { Input, useColorModeValue, Text, Box, Flex } from '@chakra-ui/react'
 import SelectSearch from 'react-select-search'
 import { Trait } from '../../utils/api'
 import TraitTag from './TraitTag'
+
+const MENU_MAX_HEIGHT = 300
 
 const TraitSelect = ({
   traits,
@@ -28,6 +21,8 @@ const TraitSelect = ({
   isDisabled?: boolean
 }) => {
   const [focused, setFocused] = useState(false)
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const [menuPlacement, setMenuPlacement] = useState<'above' | 'below'>('below')
   const options = useMemo(() => {
     return _.map(_.groupBy(traits, 'trait_type'), (items, groupName) => {
       return {
@@ -52,22 +47,45 @@ const TraitSelect = ({
   const hoverBg = useColorModeValue('blackAlpha.50', 'whiteAlpha.200')
   const iconColor = useColorModeValue('gray.400', 'gray.500')
 
+  useEffect(() => {
+    const updatePlacement = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect()
+        if (rect.top + MENU_MAX_HEIGHT + 50 > window.innerHeight) {
+          setMenuPlacement('above')
+        } else {
+          setMenuPlacement('below')
+        }
+      }
+    }
+    updatePlacement()
+    const throttledUpdatePlacement = _.throttle(updatePlacement, 300)
+    window.addEventListener('resize', throttledUpdatePlacement)
+    window.addEventListener('scroll', throttledUpdatePlacement)
+    return () => {
+      window.removeEventListener('resize', throttledUpdatePlacement)
+      window.removeEventListener('scroll', throttledUpdatePlacement)
+    }
+  }, [])
+
   return (
     <Box
       width="100%"
       color={useColorModeValue('black', 'white')}
+      ref={containerRef}
       sx={{
         '.select-search__select': {
           background: useColorModeValue('gray.50', 'gray.800'),
           marginTop: '10px',
+          marginBottom: '10px',
           position: 'absolute',
-          top: '100%',
           left: 0,
           width: '100%',
           borderRadius: '5px',
           overflow: 'auto',
-          maxHeight: '300px',
+          maxHeight: `${MENU_MAX_HEIGHT}px`,
           zIndex: 99,
+          ...(menuPlacement === 'above' ? { bottom: '100%' } : { top: '100%' }),
         },
         '.select-search__options': {
           listStyleType: 'none',
