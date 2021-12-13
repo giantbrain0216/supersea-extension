@@ -104,7 +104,7 @@ type CachedState = {
   activeNotifiers: Notifier[]
   playSound: boolean
   sendNotification: boolean
-  seenListingsCount: 0
+  seenListingsCount: number
 }
 let DEFAULT_STATE: CachedState = {
   collectionSlug: '',
@@ -185,7 +185,6 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
   ])
 
   const unreadNotifications = matchedAssets.length - seenListingsCount
-  console.log('unreadNotifications', unreadNotifications)
 
   // Load rarities and traits
   useEffect(() => {
@@ -372,7 +371,6 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
             fontSize="xs"
             fontWeight="500"
             px="1"
-            py="1"
             position="absolute"
             top="0"
             left="0"
@@ -388,7 +386,8 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
           </Flex>
         ) : null}
         <Button
-          rightIcon={<Logo width="20px" height="20px" flipped />}
+          rightIcon={<Logo width="20px" height="20px" flipped color="white" />}
+          color="white"
           iconSpacing="3"
           onClick={() => setModalOpen(true)}
           bg="blue.500"
@@ -430,7 +429,7 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
         isSubscriber={isSubscriber}
         addedNotifiers={activeNotifiers}
         onAddNotifier={async (notifier) => {
-          if (notifier.traits) {
+          if (notifier.traits.length) {
             const address = await fetchCollectionAddress(collectionSlug)
             const { tokens } = await fetchRaritiesWithTraits(
               address,
