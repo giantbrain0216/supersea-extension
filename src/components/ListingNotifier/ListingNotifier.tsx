@@ -1,6 +1,7 @@
 import _ from 'lodash'
 import { useEffect, useState, useRef } from 'react'
-import { Button, Flex } from '@chakra-ui/react'
+import { Button, Flex, Icon, Tooltip, Box } from '@chakra-ui/react'
+import { BiRefresh } from 'react-icons/bi'
 import Logo from '../Logo'
 import ListingNotifierModal, { Notifier } from './ListingNotifierModal'
 import { MatchedAsset } from './MatchedAssetListing'
@@ -279,8 +280,8 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
                   .filter(
                     (asset: MatchedAsset) => !addedListings[asset.listingId],
                   )
-                  .filter((asset: MatchedAsset) => {
-                    const matches = activeNotifiers.some((notifier) =>
+                  .map((asset: MatchedAsset) => {
+                    const notifier = activeNotifiers.find((notifier) =>
                       listingMatchesNotifier({
                         asset,
                         notifier,
@@ -288,8 +289,9 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
                         assetsMatchingNotifier,
                       }),
                     )
-                    return matches
+                    return { ...asset, notifier }
                   })
+                  .filter((asset: MatchedAsset) => Boolean(asset.notifier))
                 filteredAssets.forEach((asset: MatchedAsset) => {
                   addedListings[asset.listingId] = true
                   if (sendNotification) {
@@ -350,14 +352,38 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
   ])
 
   return (
-    <Flex justifyContent="flex-end" py="2">
+    <Flex justifyContent="flex-start" py="2" alignItems="center">
       <Button
         rightIcon={<Logo width="20px" height="20px" flipped />}
         iconSpacing="3"
         onClick={() => setModalOpen(true)}
+        bg="blue.500"
+        _hover={{ bg: 'blue.400' }}
+        _active={{ bg: 'blue.300' }}
       >
         Listing Notifiers
       </Button>
+      {pollStatus === 'ACTIVE' && activeNotifiers.length ? (
+        <Tooltip
+          label="Scanning for new listings"
+          fontSize="sm"
+          hasArrow
+          bg="gray.700"
+          placement="top"
+          color="white"
+          px="2"
+          py="1"
+        >
+          <Box mx="3" width="24px" height="24px">
+            <Icon
+              as={BiRefresh}
+              width="24px"
+              height="24px"
+              animation="SuperSea__Rotate 4s linear infinite"
+            />
+          </Box>
+        </Tooltip>
+      ) : null}
       <ListingNotifierModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}

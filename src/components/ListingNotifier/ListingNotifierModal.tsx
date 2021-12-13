@@ -5,6 +5,7 @@ import {
   Heading,
   Text,
   IconButton,
+  Circle,
   Flex,
   Spinner,
   Icon,
@@ -43,6 +44,9 @@ import { DeleteIcon } from '@chakra-ui/icons'
 import { Trait } from '../../utils/api'
 import TraitTag from '../SearchResults/TraitTag'
 import LockedFeature from '../LockedFeature'
+
+const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+let notifierNumber = 0
 
 export type Notifier = {
   id: string
@@ -90,7 +94,11 @@ const ListingNotifierModal = ({
 
   const { colorMode } = useColorMode()
 
-  const borderColor = useColorModeValue('blackAlpha.300', 'whiteAlpha.300')
+  const borderColor = useColorModeValue('blackAlpha.300', 'whiteAlpha.400')
+  const idCircleBackground = useColorModeValue(
+    'blackAlpha.100',
+    'blackAlpha.300',
+  )
   const rarityInputsDisabled = isRanked === false || !isSubscriber
 
   return (
@@ -229,13 +237,16 @@ const ListingNotifierModal = ({
                   onClick={async () => {
                     setCreatingNotifier(true)
                     await onAddNotifier({
-                      id: _.uniqueId('notifier-'),
+                      id: `${ALPHABET[notifierNumber % ALPHABET.length]}${
+                        Math.floor(notifierNumber / ALPHABET.length) || ''
+                      }`,
                       minPrice: minPrice ? Number(minPrice) : null,
                       maxPrice: maxPrice ? Number(maxPrice) : null,
                       lowestRarity,
                       includeAuctions,
                       traits,
                     })
+                    notifierNumber++
                     unstable_batchedUpdates(() => {
                       setMinPrice('')
                       setMaxPrice('')
@@ -267,6 +278,7 @@ const ListingNotifierModal = ({
                   >
                     <Thead borderBottom="1px solid" borderColor={borderColor}>
                       <Tr>
+                        <Th px="4">ID</Th>
                         <Th>Price Range</Th>
                         <Th>Lowest Rarity</Th>
                         <Th>Traits</Th>
@@ -278,6 +290,17 @@ const ListingNotifierModal = ({
                         ({ id, minPrice, maxPrice, lowestRarity, traits }) => {
                           return (
                             <Tr key={id}>
+                              <Td px="2" py="1">
+                                <Circle
+                                  p="2"
+                                  width="28px"
+                                  height="28px"
+                                  fontWeight="bold"
+                                  bg={idCircleBackground}
+                                >
+                                  {id}
+                                </Circle>
+                              </Td>
                               <Td>
                                 {(() => {
                                   if (minPrice === null && maxPrice === null) {

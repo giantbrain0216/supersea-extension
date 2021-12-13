@@ -1,9 +1,19 @@
-import { HStack, Box, Flex, Text, Image, LinkOverlay } from '@chakra-ui/react'
+import {
+  HStack,
+  Box,
+  Flex,
+  Text,
+  Image,
+  LinkOverlay,
+  Circle,
+  useColorModeValue,
+} from '@chakra-ui/react'
 import { useRef, useState } from 'react'
 import { readableEthValue } from '../../utils/ethereum'
 import AssetInfo, { LIST_HEIGHT, LIST_WIDTH } from '../AssetInfo'
 import TimeAgo from 'react-timeago'
 import EthereumIcon from '../EthereumIcon'
+import { Notifier } from './ListingNotifierModal'
 
 export type MatchedAsset = {
   listingId: string
@@ -14,11 +24,16 @@ export type MatchedAsset = {
   price: string
   currency: string
   timestamp: string
+  notifier: Notifier
 }
 
 const MatchedAssetListing = ({ asset }: { asset: MatchedAsset }) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const [container, setContainer] = useState<HTMLDivElement | null>(null)
+  const idCircleBackground = useColorModeValue(
+    'blackAlpha.100',
+    'blackAlpha.300',
+  )
   return (
     <HStack
       spacing="2"
@@ -30,6 +45,16 @@ const MatchedAssetListing = ({ asset }: { asset: MatchedAsset }) => {
       width="100%"
       pr="8"
     >
+      <Circle
+        p="2"
+        width="28px"
+        height="28px"
+        mr="3"
+        fontWeight="bold"
+        bg={idCircleBackground}
+      >
+        {asset.notifier.id}
+      </Circle>
       {container ? (
         <AssetInfo
           address={asset.contractAddress!}
