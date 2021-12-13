@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import _ from 'lodash'
 import { useEffect, useState, useRef } from 'react'
 import { Button, Flex, Icon, Tooltip, Box } from '@chakra-ui/react'
@@ -103,6 +104,7 @@ type CachedState = {
   activeNotifiers: Notifier[]
   playSound: boolean
   sendNotification: boolean
+  seenListingsCount: 0
 }
 let DEFAULT_STATE: CachedState = {
   collectionSlug: '',
@@ -114,6 +116,7 @@ let DEFAULT_STATE: CachedState = {
   assetsMatchingNotifier: {},
   playSound: true,
   sendNotification: true,
+  seenListingsCount: 0,
 }
 let cachedState = DEFAULT_STATE
 
@@ -148,10 +151,14 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
     'STARTING' | 'ACTIVE' | 'FAILED'
   >('STARTING')
 
+  const [seenListingsCount, setSeenListingsCount] = useState(
+    stateToRestore.seenListingsCount,
+  )
   const retriesRef = useRef(0)
 
   const { isSubscriber } = useUser() || { isSubscriber: false }
 
+  // Cache state
   useEffect(() => {
     cachedState = {
       collectionSlug: collectionSlug,
@@ -163,6 +170,7 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
       activeNotifiers,
       playSound,
       sendNotification,
+      seenListingsCount,
     }
   }, [
     activeNotifiers,
@@ -173,10 +181,13 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
     rarities,
     playSound,
     sendNotification,
+    seenListingsCount,
   ])
 
+  const unreadNotifications = matchedAssets.length - seenListingsCount
+  console.log('unreadNotifications', unreadNotifications)
+
   // Load rarities and traits
-  // TODO: Check if member
   useEffect(() => {
     if (rarities) return
     ;(async () => {
@@ -353,16 +364,40 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
 
   return (
     <Flex justifyContent="flex-start" py="2" alignItems="center">
-      <Button
-        rightIcon={<Logo width="20px" height="20px" flipped />}
-        iconSpacing="3"
-        onClick={() => setModalOpen(true)}
-        bg="blue.500"
-        _hover={{ bg: 'blue.400' }}
-        _active={{ bg: 'blue.300' }}
-      >
-        Listing Notifiers
-      </Button>
+      <Box position="relative">
+        {unreadNotifications > 0 && !modalOpen ? (
+          <Flex
+            color="white"
+            bg="red.500"
+            fontSize="xs"
+            fontWeight="500"
+            px="1"
+            py="1"
+            position="absolute"
+            top="0"
+            left="0"
+            minWidth="20px"
+            height="20px"
+            transform="translate(-50%, -50%)"
+            borderRadius="20px"
+            alignItems="center"
+            justifyContent="center"
+            zIndex={2}
+          >
+            {unreadNotifications}
+          </Flex>
+        ) : null}
+        <Button
+          rightIcon={<Logo width="20px" height="20px" flipped />}
+          iconSpacing="3"
+          onClick={() => setModalOpen(true)}
+          bg="blue.500"
+          _hover={{ bg: 'blue.400' }}
+          _active={{ bg: 'blue.300' }}
+        >
+          Listing Notifiers
+        </Button>
+      </Box>
       {pollStatus === 'ACTIVE' && activeNotifiers.length ? (
         <Tooltip
           label="Scanning for new listings"
@@ -386,7 +421,10 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
       ) : null}
       <ListingNotifierModal
         isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={() => {
+          setModalOpen(false)
+          setSeenListingsCount(matchedAssets.length)
+        }}
         allTraits={rarities?.traits}
         isRanked={rarities ? rarities.isRanked : null}
         isSubscriber={isSubscriber}
