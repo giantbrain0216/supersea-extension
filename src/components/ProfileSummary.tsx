@@ -39,12 +39,7 @@ const ProfileSummary = ({ shortenedAddress }: { shortenedAddress: string }) => {
       const collections = await fetchAllCollectionsForUser(address)
       await Promise.all(
         collections.map(async ({ slug, ownedCount }) => {
-          const floor = await fetchFloorPrice({
-            collectionSlug: slug,
-            tokenId: '1',
-            address: slug,
-            chain: 'ethereum',
-          })
+          const floor = await fetchFloorPrice(slug)
           setFloorTotal((total) => total + floor.price * ownedCount)
           setProgress(({ numLoaded }) => ({
             total: collections.length,

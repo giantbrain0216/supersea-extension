@@ -194,24 +194,9 @@ const nonFungibleRequest = async (
   }
 }
 
-const floorPriceLoader = new DataLoader(
-  async (
-    keys: readonly {
-      address: string
-      tokenId: string
-      chain: Chain
-      collectionSlug?: string
-    }[],
-  ) => {
-    const { address, tokenId, collectionSlug } = keys[0]
-    let slug = collectionSlug
-    if (!slug) {
-      await openSeaPublicRateLimit()
-      const asset = await fetch(
-        `https://api.opensea.io/api/v1/asset/${address}/${tokenId}`,
-      ).then((res) => res.json())
-      slug = asset.collection.slug
-    }
+export const floorPriceLoader = new DataLoader(
+  async (keys: readonly string[]) => {
+    const [slug] = keys
     await openSeaPublicRateLimit()
     const { stats } = await fetch(
       `https://api.opensea.io/api/v1/collection/${slug}/stats`,
@@ -226,25 +211,11 @@ const floorPriceLoader = new DataLoader(
   },
   {
     maxBatchSize: 1,
-    cacheKeyFn: ({ address, tokenId, collectionSlug }) => {
-      if (collectionSlug) return collectionSlug
-      if (OPENSEA_SHARED_CONTRACT_ADDRESSES.includes(address))
-        return `${address}/${tokenId.slice(
-          0,
-          OPENSEA_SHARED_CONTRACT_COLLECTION_ID_LENGTH,
-        )}`
-      return address
-    },
   },
 )
 
-export const fetchFloorPrice = (params: {
-  address: string
-  tokenId: string
-  chain: Chain
-  collectionSlug?: string
-}) => {
-  return floorPriceLoader.load(params) as Promise<Floor>
+export const fetchFloorPrice = (collectionSlug: string) => {
+  return floorPriceLoader.load(collectionSlug) as Promise<Floor>
 }
 
 const rarityQuery = gql`
@@ -382,37 +353,6 @@ export const fetchAsset = (address: string, tokenId: number) => {
   return assetLoader.load(`${address}_${tokenId}`) as Promise<Asset>
 }
 
-const userAssetsQuery = gql`
-  query UserAssetsQuery(
-    $userName: String
-    $ensName: String
-    $address: String
-    $cursor: String
-  ) {
-    search(
-      identity: { username: $userName, name: $ensName, address: $address }
-      first: 100
-      after: $cursor
-    ) {
-      edges {
-        node {
-          asset {
-            assetContract {
-              address
-            }
-            tokenId
-          }
-        }
-      }
-      totalCount
-      pageInfo {
-        endCursor
-        hasNextPage
-      }
-    }
-  }
-`
-
 export const fetchAllCollectionsForUser = async (
   address: string,
   list = [],
@@ -507,4 +447,34 @@ const collectionAddressLoader = new DataLoader(
 )
 export const fetchCollectionAddress = async (slug: string) => {
   return collectionAddressLoader.load(slug) as Promise<string>
+}
+
+const collectionSlugLoader = new DataLoader(
+  async (
+    keys: readonly {
+      address: string
+      tokenId: string
+    }[],
+  ) => {
+    const { address, tokenId } = keys[0]
+    await openSeaPublicRateLimit()
+    const asset = await fetch(
+      `https://api.opensea.io/api/v1/asset/${address}/${tokenId}`,
+    ).then((res) => res.json())
+    return [asset.collection.slug]
+  },
+  {
+    maxBatchSize: 1,
+    cacheKeyFn: ({ address, tokenId }) => {
+      if (OPENSEA_SHARED_CONTRACT_ADDRESSES.includes(address))
+        return `${address}/${tokenId.slice(
+          0,
+          OPENSEA_SHARED_CONTRACT_COLLECTION_ID_LENGTH,
+        )}`
+      return address
+    },
+  },
+)
+export const fetchCollectionSlug = async (address: string, tokenId: string) => {
+  return collectionSlugLoader.load({ address, tokenId }) as Promise<string>
 }

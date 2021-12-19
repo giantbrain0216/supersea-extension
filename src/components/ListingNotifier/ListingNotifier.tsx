@@ -380,6 +380,7 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
             borderRadius="20px"
             alignItems="center"
             justifyContent="center"
+            lineHeight={0}
             zIndex={2}
           >
             {unreadNotifications}

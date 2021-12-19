@@ -21,16 +21,15 @@ import {
   Tooltip,
 } from '@chakra-ui/react'
 import { FiMoreHorizontal, FiExternalLink } from 'react-icons/fi'
-
+import TimeAgo from 'react-timeago'
 import {
   Chain,
-  fetchFloorPrice,
+  fetchCollectionSlug,
   fetchIsRanked,
   fetchMetadata,
   fetchMetadataUriWithOpenSeaFallback,
   fetchRarities,
   fetchSelectors,
-  Floor,
   triggerOpenSeaMetadataRefresh,
 } from '../utils/api'
 import Toast from './Toast'
@@ -45,6 +44,7 @@ import BuyNowButton from './BuyNowButton'
 import LockedFeature from './LockedFeature'
 import { selectElement } from '../utils/selector'
 import { determineRarityType, RARITY_TYPES } from '../utils/rarity'
+import useFloor from '../hooks/useFloor'
 
 export const HEIGHT = 85
 export const LIST_HEIGHT = 62
@@ -120,7 +120,7 @@ const AssetInfo = ({
   tokenId,
   type,
   container,
-  collectionSlug,
+  collectionSlug: inputCollectionSlug,
   chain,
 }: {
   address: string
@@ -136,13 +136,18 @@ const AssetInfo = ({
   const { isSubscriber } = useUser() || { isSubscriber: false }
 
   const [rarity, setRarity] = useState<Rarity | null | undefined>(undefined)
-  const [floor, setFloor] = useState<Floor | null | undefined>(undefined)
   const [refreshState, setRefreshState] = useState<RefreshState>('IDLE')
   const [isAutoQueued, setIsAutoQueued] = useState(false)
   const [isAutoImageReplaced, setIsAutoImageReplaced] = useState(false)
+  const [floorTooltipOpen, setFloorTooltipOpen] = useState(false)
+  const [collectionSlug, setCollectionSlug] = useState(inputCollectionSlug)
 
   const toast = useToast()
   const isMembershipNFT = MEMBERSHIP_ADDRESS === address
+
+  const { floor, loading: floorLoading, loadedAt: floorLoadedAt } = useFloor(
+    collectionSlug,
+  )
 
   const replaceImage = useCallback(async () => {
     await replaceImageRateLimit()
@@ -239,20 +244,16 @@ const AssetInfo = ({
   }, [autoQueueRefresh])
 
   useEffect(() => {
-    if (!(address && tokenId)) return
+    if (collectionSlug) return
+    if (!address || !tokenId) return
     ;(async () => {
-      try {
-        const floor = await fetchFloorPrice({
-          address,
-          tokenId,
-          chain,
-          collectionSlug,
-        })
-        setFloor(floor)
-      } catch (err) {
-        setFloor(null)
-      }
+      const slug = await fetchCollectionSlug(address, tokenId)
+      setCollectionSlug(slug)
     })()
+  }, [address, tokenId, collectionSlug])
+
+  useEffect(() => {
+    if (!(address && tokenId)) return
     ;(async () => {
       if (isSubscriber) {
         if (chain === 'polygon') {
@@ -571,21 +572,42 @@ const AssetInfo = ({
             {floor !== undefined ? (
               <>
                 {floor?.currency === 'ETH' ? <EthereumIcon /> : null}
-                <Link
-                  href={floor ? floor.floorSearchUrl : undefined}
-                  fontWeight="500"
-                  verticalAlign="middle"
+                <Tooltip
+                  label={
+                    <Text as="span" py="0" my="0">
+                      Floor updated{' '}
+                      {floorTooltipOpen ? (
+                        <TimeAgo date={floorLoadedAt} live={false} />
+                      ) : null}
+                    </Text>
+                  }
+                  size="md"
+                  hasArrow
+                  bg="gray.700"
+                  placement="top"
+                  color="white"
+                  onOpen={() => setFloorTooltipOpen(true)}
+                  onClose={() => setFloorTooltipOpen(false)}
+                  px="3"
+                  py="2"
                 >
-                  {floor === null
-                    ? 'Unavailable'
-                    : `${floor.price} ${
-                        floor.currency !== 'ETH' ? ` ${floor.currency}` : ''
-                      }`}
-                </Link>
+                  <Link
+                    href={floor ? floor.floorSearchUrl : undefined}
+                    fontWeight="500"
+                    verticalAlign="middle"
+                  >
+                    {floor === null
+                      ? 'Unavailable'
+                      : `${floor.price} ${
+                          floor.currency !== 'ETH' ? ` ${floor.currency}` : ''
+                        }`}
+                  </Link>
+                </Tooltip>
               </>
-            ) : (
+            ) : null}
+            {floorLoading ? (
               <Spinner ml={1} width={3} height={3} opacity={0.75} />
-            )}
+            ) : null}
           </Flex>
         </VStack>
         <Box
