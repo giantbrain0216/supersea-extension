@@ -205,12 +205,19 @@ const ProfileSummary = ({ shortenedAddress }: { shortenedAddress: string }) => {
                 <ModalOverlay />
                 <ModalContent maxWidth="container.md">
                   <ModalCloseButton />
-                  <ModalHeader>Profile Floor Value Breakdown</ModalHeader>
+                  <ModalHeader pb="0">
+                    Profile Floor Value Breakdown
+                  </ModalHeader>
                   <ModalBody px="3" pb="8">
+                    <Text opacity="0.85" px="3">
+                      Assets on Polygon and chains other than Ethereum are
+                      currently unavailable.
+                    </Text>
                     <Table
                       variant="simple"
                       width="100%"
                       size="sm"
+                      mt="4"
                       sx={{
                         '& tbody tr:nth-child(2n)': {
                           bg: tableStripeColor,
