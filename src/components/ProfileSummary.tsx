@@ -273,7 +273,7 @@ const ProfileSummary = ({ shortenedAddress }: { shortenedAddress: string }) => {
         ) : (
           <Box>
             <Button onClick={() => setActive(true)} variant="outline">
-              Calculate Collection Value
+              Calculate Profile Value
             </Button>
           </Box>
         )}
