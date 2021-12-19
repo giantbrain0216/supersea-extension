@@ -11,11 +11,34 @@ import {
   StatNumber,
   Progress,
   useColorModeValue,
+  Image,
+  Modal,
+  ModalHeader,
+  ModalBody,
+  ModalCloseButton,
+  ModalContent,
+  ModalOverlay,
+  Table,
+  Icon,
+  Tbody,
+  Td,
+  Th,
+  Thead,
+  Tr,
 } from '@chakra-ui/react'
 import Logo from './Logo'
+import { BiReceipt } from 'react-icons/bi'
 import { fetchAllCollectionsForUser, fetchFloorPrice } from '../utils/api'
 import EthereumIcon from './EthereumIcon'
+import ScopedCSSPortal from './ScopedCSSPortal'
 
+type CollectionFloor = {
+  name: string
+  floor: number
+  slug: string
+  image: string
+  ownedCount: number
+}
 const ProfileSummary = ({ shortenedAddress }: { shortenedAddress: string }) => {
   const [active, setActive] = useState(false)
   const [progress, setProgress] = useState<{
@@ -24,21 +47,27 @@ const ProfileSummary = ({ shortenedAddress }: { shortenedAddress: string }) => {
     complete: boolean
   }>({ total: 0, numLoaded: 0, complete: false })
   const [floorTotal, setFloorTotal] = useState(0)
+  const [floorBreakdown, setFloorBreakdown] = useState<CollectionFloor[]>([])
+  const [breakdownModalOpen, setBreakdownModalOpen] = useState(false)
+  const tableStripeColor = useColorModeValue('blackAlpha.100', 'whiteAlpha.100')
 
   useEffect(() => {
     if (!active) return
     ;(async () => {
+      // Fetch the current (profile) page as text
       const serverRender = await fetch(
         window.location.href.split(/[?#]/)[0],
       ).then((res) => res.text())
+      // Parse out the full address based on the shortened version
       const address = (serverRender.match(
         new RegExp(`${shortenedAddress.replace('...', '[a-z0-9]+?')}`, 'i'),
       ) || [])[0]
+
       if (!address) return
 
       const collections = await fetchAllCollectionsForUser(address)
       await Promise.all(
-        collections.map(async ({ slug, ownedCount }) => {
+        collections.map(async ({ slug, image, ownedCount, name }) => {
           const floor = await fetchFloorPrice({
             collectionSlug: slug,
             tokenId: '1',
@@ -46,6 +75,10 @@ const ProfileSummary = ({ shortenedAddress }: { shortenedAddress: string }) => {
             chain: 'ethereum',
           })
           setFloorTotal((total) => total + floor.price * ownedCount)
+          setFloorBreakdown((floorBreakdown) => [
+            ...floorBreakdown,
+            { name, slug, image, floor: floor.price, ownedCount },
+          ])
           setProgress(({ numLoaded }) => ({
             total: collections.length,
             numLoaded: numLoaded + 1,
@@ -64,13 +97,14 @@ const ProfileSummary = ({ shortenedAddress }: { shortenedAddress: string }) => {
         width="100%"
         borderRadius="md"
         border="1px solid"
+        flexDirection="column"
+        justifyContent="center"
         minHeight="90px"
         borderColor={useColorModeValue('gray.200', 'transparent')}
         my="4"
         py="4"
         px="7"
         pr="120px"
-        alignItems="center"
         position="relative"
         overflow="hidden"
       >
@@ -151,11 +185,97 @@ const ProfileSummary = ({ shortenedAddress }: { shortenedAddress: string }) => {
                 </StatNumber>
               </Stat>
             </HStack>
+            <Box mb="-12px" ml="-2px" mt="3">
+              <Button
+                variant="link"
+                onClick={() => setBreakdownModalOpen(true)}
+                size="sm"
+                fontWeight="500"
+                iconSpacing="0.25em"
+                leftIcon={<Icon as={BiReceipt} width="16px" height="16px" />}
+              >
+                View Breakdown
+              </Button>
+            </Box>
+            <ScopedCSSPortal>
+              <Modal
+                isOpen={breakdownModalOpen}
+                onClose={() => setBreakdownModalOpen(false)}
+              >
+                <ModalOverlay />
+                <ModalContent maxWidth="container.md">
+                  <ModalCloseButton />
+                  <ModalHeader>Profile Floor Value Breakdown</ModalHeader>
+                  <ModalBody px="3" pb="8">
+                    <Table
+                      variant="simple"
+                      width="100%"
+                      size="sm"
+                      sx={{
+                        '& tbody tr:nth-child(2n)': {
+                          bg: tableStripeColor,
+                        },
+                      }}
+                    >
+                      <Thead>
+                        <Tr>
+                          <Th>Owned</Th>
+                          <Th>Collection</Th>
+                          <Th>Unit Floor Price</Th>
+                          <Th>Total Floor Price</Th>
+                        </Tr>
+                      </Thead>
+                      <Tbody>
+                        {floorBreakdown
+                          .sort(
+                            (a, b) =>
+                              b.floor * a.ownedCount - a.floor * a.ownedCount,
+                          )
+                          .map(({ name, slug, image, floor, ownedCount }) => {
+                            return (
+                              <Tr key={slug}>
+                                <Td>{ownedCount}x</Td>
+                                <Td>
+                                  <HStack spacing="2">
+                                    <Image
+                                      src={image}
+                                      width="16px"
+                                      height="16px"
+                                    />
+                                    <Text>{name}</Text>
+                                  </HStack>
+                                </Td>
+                                <Td>
+                                  <Flex alignItems="center">
+                                    <EthereumIcon mx="0.5em" />
+                                    <Text fontWeight="600">{floor}</Text>
+                                  </Flex>
+                                </Td>{' '}
+                                <Td>
+                                  <Flex alignItems="center">
+                                    <EthereumIcon mx="0.5em" />
+                                    <Text fontWeight="600">
+                                      {Math.round(floor * ownedCount * 10000) /
+                                        10000}
+                                    </Text>
+                                  </Flex>
+                                </Td>
+                              </Tr>
+                            )
+                          })}
+                      </Tbody>
+                    </Table>
+                  </ModalBody>
+                </ModalContent>
+              </Modal>
+            </ScopedCSSPortal>
           </>
         ) : (
-          <Button onClick={() => setActive(true)} variant="outline">
-            Calculate Collection Value
-          </Button>
+          <Box>
+            <Button onClick={() => setActive(true)} variant="outline">
+              Calculate Collection Value
+            </Button>
+          </Box>
         )}
       </Flex>
     </Box>
