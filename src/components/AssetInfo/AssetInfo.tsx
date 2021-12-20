@@ -112,7 +112,7 @@ const RarityBadge = ({
         <Text
           fontWeight="500"
           cursor={rarity ? 'pointer' : undefined}
-          onClick={onOpenProperties}
+          onClick={rarity === null ? undefined : onOpenProperties}
         >
           {rarity === null ? 'Unranked' : `#${rarity.rank}`}
         </Text>
