@@ -62,7 +62,9 @@ const listingMatchesNotifier = ({
   // Rarity
   if (notifier.lowestRarity !== 'Common' && rarities) {
     const rank = rarities.tokenRarity[asset.tokenId]
-    if (rank !== undefined) {
+    if (rank === undefined) {
+      return false
+    } else {
       const assetRarity = determineRarityType(rank, rarities.tokenCount)
       const notifierRarityIndex = RARITY_TYPES.findIndex(
         ({ name }) => name === notifier.lowestRarity,
