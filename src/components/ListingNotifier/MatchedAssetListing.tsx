@@ -43,7 +43,6 @@ const MatchedAssetListing = ({ asset }: { asset: MatchedAsset }) => {
         }
       }}
       width="100%"
-      pr="8"
     >
       <Circle
         p="2"
