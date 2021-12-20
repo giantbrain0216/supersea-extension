@@ -45,6 +45,7 @@ import LockedFeature from '../LockedFeature'
 import { selectElement } from '../../utils/selector'
 import { determineRarityType, RARITY_TYPES } from '../../utils/rarity'
 import useFloor from '../../hooks/useFloor'
+import PropertiesModal from './PropertiesModal'
 
 export const HEIGHT = 85
 export const LIST_HEIGHT = 62
@@ -63,10 +64,12 @@ const RarityBadge = ({
   rarity,
   isSubscriber,
   isMembershipNFT,
+  onOpenProperties,
 }: {
   rarity: Rarity | null
   isSubscriber: boolean
   isMembershipNFT: boolean
+  onOpenProperties: () => void
 }) => {
   if (isSubscriber || isMembershipNFT) {
     const tooltipLabel = (() => {
@@ -75,15 +78,18 @@ const RarityBadge = ({
       }
       if (rarity) {
         return (
-          <Box>
+          <Box lineHeight="1.6em">
             <Text my="0">
               {rarity.type.name}
               {rarity.type.top !== Infinity
                 ? ` (top ${rarity.type.top * 100}%)`
                 : ' (bottom 50%)'}
             </Text>
-            <Text opacity="0.5" my="0" mt="1">
+            <Text opacity="0.65" my="0">
               #{rarity.rank} / {rarity.tokenCount}
+            </Text>{' '}
+            <Text opacity="0.5" my="0" fontSize="xs">
+              Click to view properties
             </Text>
           </Box>
         )
@@ -103,7 +109,11 @@ const RarityBadge = ({
         px={3}
         py={2}
       >
-        <Text fontWeight="500" cursor={rarity ? 'pointer' : undefined}>
+        <Text
+          fontWeight="500"
+          cursor={rarity ? 'pointer' : undefined}
+          onClick={onOpenProperties}
+        >
           {rarity === null ? 'Unranked' : `#${rarity.rank}`}
         </Text>
       </Tooltip>
@@ -141,6 +151,7 @@ const AssetInfo = ({
   const [isAutoImageReplaced, setIsAutoImageReplaced] = useState(false)
   const [floorTooltipOpen, setFloorTooltipOpen] = useState(false)
   const [collectionSlug, setCollectionSlug] = useState(inputCollectionSlug)
+  const [propertiesModalOpen, setPropertiesModalOpen] = useState(false)
 
   const toast = useToast()
   const isMembershipNFT = MEMBERSHIP_ADDRESS === address
@@ -560,6 +571,7 @@ const AssetInfo = ({
                 isSubscriber={isSubscriber}
                 rarity={rarity}
                 isMembershipNFT={isMembershipNFT}
+                onOpenProperties={() => setPropertiesModalOpen(true)}
               />
             ) : (
               <Spinner ml={1} width={3} height={3} opacity={0.75} />
@@ -636,6 +648,14 @@ const AssetInfo = ({
           <BuyNowButton address={address} tokenId={tokenId} />
         </Box>
       </Flex>
+      {propertiesModalOpen && (
+        <PropertiesModal
+          collectionSlug={collectionSlug}
+          address={address}
+          tokenId={tokenId}
+          onClose={() => setPropertiesModalOpen(false)}
+        />
+      )}
     </Box>
   )
 }

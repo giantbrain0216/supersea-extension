@@ -487,3 +487,52 @@ const collectionSlugLoader = new DataLoader(
 export const fetchCollectionSlug = async (address: string, tokenId: string) => {
   return collectionSlugLoader.load({ address, tokenId }) as Promise<string>
 }
+
+const tokenPropertiesQuery = gql`
+  query TokenPropertiesQuery($address: String!, $id: Int!) {
+    contract(address: $address) {
+      rarityTable
+      tokenCount
+      traits {
+        count
+        trait_type
+        value
+      }
+      tokens(input: { in: [$id] }) {
+        score
+        rank
+        attributes {
+          trait_type
+          value
+        }
+      }
+    }
+  }
+`
+export const fetchTokenProperties = async (
+  address: string,
+  id: string,
+): Promise<{
+  token: {
+    score: number
+    rank: number
+    attributes: { trait_type: string; value: string }[]
+  }
+  tokenCount: number
+  rarityTable: {
+    scoreMap: Record<string, Record<string, number>>
+    missingTraitScores: Record<string, { score: number }>
+  }
+  traits: { count: number; trait_type: string; value: string }[]
+}> => {
+  const res = await nonFungibleRequest(tokenPropertiesQuery, {
+    address,
+    id: Number(id),
+  })
+  return {
+    tokenCount: res.contract.tokenCount,
+    token: res.contract.tokens[0],
+    rarityTable: res.contract.rarityTable,
+    traits: res.contract.traits,
+  }
+}

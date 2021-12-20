@@ -3,6 +3,7 @@ import {
   Box,
   Text,
   Flex,
+  Link,
   Spinner,
   HStack,
   Button,
@@ -182,6 +183,7 @@ const ProfileSummary = ({ shortenedAddress }: { shortenedAddress: string }) => {
             </HStack>
             <Box mb="-12px" ml="-2px" mt="3">
               <Button
+                opacity="0.75"
                 variant="link"
                 onClick={() => setBreakdownModalOpen(true)}
                 size="sm"
@@ -244,7 +246,11 @@ const ProfileSummary = ({ shortenedAddress }: { shortenedAddress: string }) => {
                                       width="16px"
                                       height="16px"
                                     />
-                                    <Text>{name}</Text>
+                                    <Link
+                                      href={`https://opensea.io/collection/${slug}`}
+                                    >
+                                      {name}
+                                    </Link>
                                   </HStack>
                                 </Td>
                                 <Td>
