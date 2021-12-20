@@ -70,6 +70,7 @@ const ListingNotifierModal = ({
   onChangePlaySound,
   sendNotification,
   onChangeSendNotification,
+  onClearMatches,
   ...modalProps
 }: {
   addedNotifiers: Notifier[]
@@ -83,6 +84,7 @@ const ListingNotifierModal = ({
   pollStatus: 'STARTING' | 'ACTIVE' | 'FAILED'
   onChangePlaySound: (playSound: boolean) => void
   sendNotification: boolean
+  onClearMatches: () => void
   onChangeSendNotification: (sendNotification: boolean) => void
 } & Omit<React.ComponentProps<typeof Modal>, 'children'>) => {
   const [minPrice, setMinPrice] = useState('')
@@ -450,6 +452,13 @@ const ListingNotifierModal = ({
                       }
                     })()}
                   </Flex>
+                  {matchedAssets.length ? (
+                    <Flex flex="1 1 auto" justifyContent="flex-end">
+                      <Button size="xs" onClick={onClearMatches}>
+                        Clear all
+                      </Button>
+                    </Flex>
+                  ) : null}
                 </Flex>
                 {matchedAssets.length ? (
                   <VStack spacing="2" alignItems="flex-start" width="100%">

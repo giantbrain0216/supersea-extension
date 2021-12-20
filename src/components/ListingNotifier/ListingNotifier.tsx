@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import _ from 'lodash'
-import { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { Button, Flex, Icon, Tooltip, Box } from '@chakra-ui/react'
 import { BiRefresh } from 'react-icons/bi'
 import Logo from '../Logo'
@@ -105,6 +105,7 @@ type CachedState = {
   playSound: boolean
   sendNotification: boolean
   seenListingsCount: number
+  notificationIds: string[]
 }
 let DEFAULT_STATE: CachedState = {
   collectionSlug: '',
@@ -117,6 +118,7 @@ let DEFAULT_STATE: CachedState = {
   playSound: true,
   sendNotification: true,
   seenListingsCount: 0,
+  notificationIds: [],
 }
 let cachedState = DEFAULT_STATE
 
@@ -155,6 +157,9 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
     stateToRestore.seenListingsCount,
   )
   const retriesRef = useRef(0)
+  const [notificationIds, setNotificationIds] = useState(
+    stateToRestore.notificationIds,
+  )
 
   const { isSubscriber } = useUser() || { isSubscriber: false }
 
@@ -171,6 +176,7 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
       playSound,
       sendNotification,
       seenListingsCount,
+      notificationIds,
     }
   }, [
     activeNotifiers,
@@ -182,6 +188,7 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
     playSound,
     sendNotification,
     seenListingsCount,
+    notificationIds,
   ])
 
   const unreadNotifications = matchedAssets.length - seenListingsCount
@@ -323,10 +330,13 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
                           },
                         },
                       },
-                      () => {
+                      (notificationId: string) => {
                         if (playSound) {
                           throttledPlayNotificationSound()
                         }
+                        setNotificationIds((ids) =>
+                          ids.concat([notificationId]),
+                        )
                       },
                     )
                   }
@@ -455,6 +465,16 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
           delete assetsMatchingNotifier[id]
         }}
         matchedAssets={matchedAssets}
+        onClearMatches={() => {
+          chrome.runtime.sendMessage({
+            method: 'clearNotifications',
+            params: {
+              ids: notificationIds,
+            },
+          })
+          setMatchedAssets([])
+          setNotificationIds([])
+        }}
         playSound={playSound}
         pollStatus={pollStatus}
         onChangePlaySound={setPlaySound}

@@ -127,9 +127,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             }
           })
         }
-        sendResponse()
+        sendResponse(notifiedId)
       },
     )
+  } else if (request.method === 'clearNotifications') {
+    // Svg images not supported in notifications
+    request.params.ids.forEach((id: string) => {
+      chrome.notifications.clear(id)
+    })
   }
   return true
 })
