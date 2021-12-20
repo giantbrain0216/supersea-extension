@@ -357,16 +357,25 @@ export const fetchAllCollectionsForUser = async (
   address: string,
   list = [],
   offset = 0,
-): Promise<{ slug: string; ownedCount: number }[]> => {
+): Promise<
+  { slug: string; ownedCount: number; name: string; image: string }[]
+> => {
   await openSeaPublicRateLimit()
   const collections = await fetch(
     `https://api.opensea.io/api/v1/collections?asset_owner=${address}&offset=${offset}&limit=300`,
   ).then((res) => res.json())
   const updatedList = list.concat(
     collections.map(
-      (collection: { slug: string; owned_asset_count: number }) => {
+      (collection: {
+        slug: string
+        owned_asset_count: number
+        name: string
+        image_url: string
+      }) => {
         return {
           slug: collection.slug,
+          name: collection.name,
+          image: collection.image_url,
           ownedCount: collection.owned_asset_count,
         }
       },
