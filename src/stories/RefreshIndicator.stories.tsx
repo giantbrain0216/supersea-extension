@@ -2,7 +2,7 @@ import React from 'react'
 import { Story } from '@storybook/react'
 import { Center } from '@chakra-ui/react'
 
-import RefreshIndicator from '../components/RefreshIndicator'
+import RefreshIndicator from '../components/AssetInfo/RefreshIndicator'
 
 export default {
   title: 'RefreshIndicator',
