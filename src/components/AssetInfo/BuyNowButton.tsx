@@ -7,9 +7,9 @@ import {
   useToast,
 } from '@chakra-ui/react'
 import { FaShoppingCart } from 'react-icons/fa'
-import Toast from './Toast'
-import { useExtensionConfig } from '../utils/extensionConfig'
-import { useUser } from '../utils/user'
+import Toast from '../Toast'
+import { useExtensionConfig } from '../../utils/extensionConfig'
+import { useUser } from '../../utils/user'
 
 export const BuyNowButtonUI = ({
   address,

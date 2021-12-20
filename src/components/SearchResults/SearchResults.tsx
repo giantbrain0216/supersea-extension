@@ -18,7 +18,7 @@ import {
   Trait,
 } from '../../utils/api'
 import SearchAsset from './SearchAsset'
-import { HEIGHT as ASSET_INFO_HEIGHT } from '../AssetInfo'
+import { HEIGHT as ASSET_INFO_HEIGHT } from '../AssetInfo/AssetInfo'
 import { useInView } from 'react-intersection-observer'
 import Filters, { FiltersType } from './Filters'
 import { weiToEth } from '../../utils/ethereum'

@@ -31,20 +31,20 @@ import {
   fetchRarities,
   fetchSelectors,
   triggerOpenSeaMetadataRefresh,
-} from '../utils/api'
-import Toast from './Toast'
-import EthereumIcon from './EthereumIcon'
-import Logo from './Logo'
-import { useUser } from '../utils/user'
-import ScopedCSSPortal from './ScopedCSSPortal'
+} from '../../utils/api'
+import Toast from '../Toast'
+import EthereumIcon from '../EthereumIcon'
+import Logo from '../Logo'
+import { useUser } from '../../utils/user'
+import ScopedCSSPortal from '../ScopedCSSPortal'
 import RefreshIndicator, { RefreshState } from './RefreshIndicator'
-import { EventEmitterContext, GlobalConfigContext } from './AppProvider'
+import { EventEmitterContext, GlobalConfigContext } from '../AppProvider'
 import { RateLimit } from 'async-sema'
 import BuyNowButton from './BuyNowButton'
-import LockedFeature from './LockedFeature'
-import { selectElement } from '../utils/selector'
-import { determineRarityType, RARITY_TYPES } from '../utils/rarity'
-import useFloor from '../hooks/useFloor'
+import LockedFeature from '../LockedFeature'
+import { selectElement } from '../../utils/selector'
+import { determineRarityType, RARITY_TYPES } from '../../utils/rarity'
+import useFloor from '../../hooks/useFloor'
 
 export const HEIGHT = 85
 export const LIST_HEIGHT = 62
