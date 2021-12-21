@@ -341,6 +341,8 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
                         )
                       },
                     )
+                  } else if (playSound) {
+                    throttledPlayNotificationSound()
                   }
                 })
                 setPollStatus('ACTIVE')
