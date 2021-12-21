@@ -21,30 +21,31 @@ import {
   Tooltip,
 } from '@chakra-ui/react'
 import { FiMoreHorizontal, FiExternalLink } from 'react-icons/fi'
-
+import TimeAgo from 'react-timeago'
 import {
   Chain,
-  fetchFloorPrice,
+  fetchCollectionSlug,
   fetchIsRanked,
   fetchMetadata,
   fetchMetadataUriWithOpenSeaFallback,
   fetchRarities,
   fetchSelectors,
-  Floor,
   triggerOpenSeaMetadataRefresh,
-} from '../utils/api'
-import Toast from './Toast'
-import EthereumIcon from './EthereumIcon'
-import Logo from './Logo'
-import { useUser } from '../utils/user'
-import ScopedCSSPortal from './ScopedCSSPortal'
+} from '../../utils/api'
+import Toast from '../Toast'
+import EthereumIcon from '../EthereumIcon'
+import Logo from '../Logo'
+import { useUser } from '../../utils/user'
+import ScopedCSSPortal from '../ScopedCSSPortal'
 import RefreshIndicator, { RefreshState } from './RefreshIndicator'
-import { EventEmitterContext, GlobalConfigContext } from './AppProvider'
+import { EventEmitterContext, GlobalConfigContext } from '../AppProvider'
 import { RateLimit } from 'async-sema'
 import BuyNowButton from './BuyNowButton'
-import LockedFeature from './LockedFeature'
-import { selectElement } from '../utils/selector'
-import { determineRarityType, RARITY_TYPES } from '../utils/rarity'
+import LockedFeature from '../LockedFeature'
+import { selectElement } from '../../utils/selector'
+import { determineRarityType, RARITY_TYPES } from '../../utils/rarity'
+import useFloor from '../../hooks/useFloor'
+import PropertiesModal from './PropertiesModal'
 
 export const HEIGHT = 85
 export const LIST_HEIGHT = 62
@@ -63,10 +64,12 @@ const RarityBadge = ({
   rarity,
   isSubscriber,
   isMembershipNFT,
+  onOpenProperties,
 }: {
   rarity: Rarity | null
   isSubscriber: boolean
   isMembershipNFT: boolean
+  onOpenProperties: () => void
 }) => {
   if (isSubscriber || isMembershipNFT) {
     const tooltipLabel = (() => {
@@ -75,15 +78,18 @@ const RarityBadge = ({
       }
       if (rarity) {
         return (
-          <Box>
+          <Box lineHeight="1.6em">
             <Text my="0">
               {rarity.type.name}
               {rarity.type.top !== Infinity
                 ? ` (top ${rarity.type.top * 100}%)`
                 : ' (bottom 50%)'}
             </Text>
-            <Text opacity="0.5" my="0" mt="1">
+            <Text opacity="0.65" my="0">
               #{rarity.rank} / {rarity.tokenCount}
+            </Text>{' '}
+            <Text opacity="0.5" my="0" fontSize="xs">
+              Click to view properties
             </Text>
           </Box>
         )
@@ -103,7 +109,11 @@ const RarityBadge = ({
         px={3}
         py={2}
       >
-        <Text fontWeight="500" cursor={rarity ? 'pointer' : undefined}>
+        <Text
+          fontWeight="500"
+          cursor={rarity ? 'pointer' : undefined}
+          onClick={rarity === null ? undefined : onOpenProperties}
+        >
           {rarity === null ? 'Unranked' : `#${rarity.rank}`}
         </Text>
       </Tooltip>
@@ -120,7 +130,7 @@ const AssetInfo = ({
   tokenId,
   type,
   container,
-  collectionSlug,
+  collectionSlug: inputCollectionSlug,
   chain,
 }: {
   address: string
@@ -136,13 +146,19 @@ const AssetInfo = ({
   const { isSubscriber } = useUser() || { isSubscriber: false }
 
   const [rarity, setRarity] = useState<Rarity | null | undefined>(undefined)
-  const [floor, setFloor] = useState<Floor | null | undefined>(undefined)
   const [refreshState, setRefreshState] = useState<RefreshState>('IDLE')
   const [isAutoQueued, setIsAutoQueued] = useState(false)
   const [isAutoImageReplaced, setIsAutoImageReplaced] = useState(false)
+  const [floorTooltipOpen, setFloorTooltipOpen] = useState(false)
+  const [collectionSlug, setCollectionSlug] = useState(inputCollectionSlug)
+  const [propertiesModalOpen, setPropertiesModalOpen] = useState(false)
 
   const toast = useToast()
   const isMembershipNFT = MEMBERSHIP_ADDRESS === address
+
+  const { floor, loading: floorLoading, loadedAt: floorLoadedAt } = useFloor(
+    collectionSlug,
+  )
 
   const replaceImage = useCallback(async () => {
     await replaceImageRateLimit()
@@ -239,20 +255,16 @@ const AssetInfo = ({
   }, [autoQueueRefresh])
 
   useEffect(() => {
-    if (!(address && tokenId)) return
+    if (collectionSlug) return
+    if (!address || !tokenId) return
     ;(async () => {
-      try {
-        const floor = await fetchFloorPrice({
-          address,
-          tokenId,
-          chain,
-          collectionSlug,
-        })
-        setFloor(floor)
-      } catch (err) {
-        setFloor(null)
-      }
+      const slug = await fetchCollectionSlug(address, tokenId)
+      setCollectionSlug(slug)
     })()
+  }, [address, tokenId, collectionSlug])
+
+  useEffect(() => {
+    if (!(address && tokenId)) return
     ;(async () => {
       if (isSubscriber) {
         if (chain === 'polygon') {
@@ -559,6 +571,7 @@ const AssetInfo = ({
                 isSubscriber={isSubscriber}
                 rarity={rarity}
                 isMembershipNFT={isMembershipNFT}
+                onOpenProperties={() => setPropertiesModalOpen(true)}
               />
             ) : (
               <Spinner ml={1} width={3} height={3} opacity={0.75} />
@@ -571,21 +584,42 @@ const AssetInfo = ({
             {floor !== undefined ? (
               <>
                 {floor?.currency === 'ETH' ? <EthereumIcon /> : null}
-                <Link
-                  href={floor ? floor.floorSearchUrl : undefined}
-                  fontWeight="500"
-                  verticalAlign="middle"
+                <Tooltip
+                  label={
+                    <Text as="span" py="0" my="0">
+                      Floor updated{' '}
+                      {floorTooltipOpen ? (
+                        <TimeAgo date={floorLoadedAt} live={false} />
+                      ) : null}
+                    </Text>
+                  }
+                  size="md"
+                  hasArrow
+                  bg="gray.700"
+                  placement="top"
+                  color="white"
+                  onOpen={() => setFloorTooltipOpen(true)}
+                  onClose={() => setFloorTooltipOpen(false)}
+                  px="3"
+                  py="2"
                 >
-                  {floor === null
-                    ? 'Unavailable'
-                    : `${floor.price} ${
-                        floor.currency !== 'ETH' ? ` ${floor.currency}` : ''
-                      }`}
-                </Link>
+                  <Link
+                    href={floor ? floor.floorSearchUrl : undefined}
+                    fontWeight="500"
+                    verticalAlign="middle"
+                  >
+                    {floor === null
+                      ? 'Unavailable'
+                      : `${floor.price} ${
+                          floor.currency !== 'ETH' ? ` ${floor.currency}` : ''
+                        }`}
+                  </Link>
+                </Tooltip>
               </>
-            ) : (
+            ) : null}
+            {floorLoading ? (
               <Spinner ml={1} width={3} height={3} opacity={0.75} />
-            )}
+            ) : null}
           </Flex>
         </VStack>
         <Box
@@ -614,6 +648,14 @@ const AssetInfo = ({
           <BuyNowButton address={address} tokenId={tokenId} />
         </Box>
       </Flex>
+      {propertiesModalOpen && (
+        <PropertiesModal
+          collectionSlug={collectionSlug}
+          address={address}
+          tokenId={tokenId}
+          onClose={() => setPropertiesModalOpen(false)}
+        />
+      )}
     </Box>
   )
 }

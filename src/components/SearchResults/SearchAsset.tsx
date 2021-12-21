@@ -10,7 +10,7 @@ import {
   useColorModeValue,
 } from '@chakra-ui/react'
 import { Asset } from '../../utils/api'
-import AssetInfo, { HEIGHT as ASSET_INFO_HEIGHT } from '../AssetInfo'
+import AssetInfo, { HEIGHT as ASSET_INFO_HEIGHT } from '../AssetInfo/AssetInfo'
 import EthereumIcon from '../EthereumIcon'
 import { readableEthValue } from '../../utils/ethereum'
 
@@ -34,6 +34,7 @@ const SearchAsset = ({
       key={tokenId}
       position="relative"
       paddingBottom={ASSET_INFO_HEIGHT}
+      ref={containerRef}
       animation="SuperSea__FadeIn 350ms ease"
     >
       <LinkBox>

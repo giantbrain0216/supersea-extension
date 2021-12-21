@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import _ from 'lodash'
-import { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { Button, Flex, Icon, Tooltip, Box } from '@chakra-ui/react'
 import { BiRefresh } from 'react-icons/bi'
 import Logo from '../Logo'
@@ -62,7 +62,9 @@ const listingMatchesNotifier = ({
   // Rarity
   if (notifier.lowestRarity !== 'Common' && rarities) {
     const rank = rarities.tokenRarity[asset.tokenId]
-    if (rank !== undefined) {
+    if (rank === undefined) {
+      return false
+    } else {
       const assetRarity = determineRarityType(rank, rarities.tokenCount)
       const notifierRarityIndex = RARITY_TYPES.findIndex(
         ({ name }) => name === notifier.lowestRarity,
@@ -105,6 +107,7 @@ type CachedState = {
   playSound: boolean
   sendNotification: boolean
   seenListingsCount: number
+  notificationIds: string[]
 }
 let DEFAULT_STATE: CachedState = {
   collectionSlug: '',
@@ -117,6 +120,7 @@ let DEFAULT_STATE: CachedState = {
   playSound: true,
   sendNotification: true,
   seenListingsCount: 0,
+  notificationIds: [],
 }
 let cachedState = DEFAULT_STATE
 
@@ -155,6 +159,9 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
     stateToRestore.seenListingsCount,
   )
   const retriesRef = useRef(0)
+  const [notificationIds, setNotificationIds] = useState(
+    stateToRestore.notificationIds,
+  )
 
   const { isSubscriber } = useUser() || { isSubscriber: false }
 
@@ -171,6 +178,7 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
       playSound,
       sendNotification,
       seenListingsCount,
+      notificationIds,
     }
   }, [
     activeNotifiers,
@@ -182,6 +190,7 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
     playSound,
     sendNotification,
     seenListingsCount,
+    notificationIds,
   ])
 
   const unreadNotifications = matchedAssets.length - seenListingsCount
@@ -323,10 +332,13 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
                           },
                         },
                       },
-                      () => {
+                      (notificationId: string) => {
                         if (playSound) {
                           throttledPlayNotificationSound()
                         }
+                        setNotificationIds((ids) =>
+                          ids.concat([notificationId]),
+                        )
                       },
                     )
                   }
@@ -380,6 +392,7 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
             borderRadius="20px"
             alignItems="center"
             justifyContent="center"
+            lineHeight={0}
             zIndex={2}
           >
             {unreadNotifications}
@@ -454,6 +467,16 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
           delete assetsMatchingNotifier[id]
         }}
         matchedAssets={matchedAssets}
+        onClearMatches={() => {
+          chrome.runtime.sendMessage({
+            method: 'clearNotifications',
+            params: {
+              ids: notificationIds,
+            },
+          })
+          setMatchedAssets([])
+          setNotificationIds([])
+        }}
         playSound={playSound}
         pollStatus={pollStatus}
         onChangePlaySound={setPlaySound}

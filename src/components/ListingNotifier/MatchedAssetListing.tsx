@@ -10,7 +10,7 @@ import {
 } from '@chakra-ui/react'
 import { useRef, useState } from 'react'
 import { readableEthValue } from '../../utils/ethereum'
-import AssetInfo, { LIST_HEIGHT, LIST_WIDTH } from '../AssetInfo'
+import AssetInfo, { LIST_HEIGHT, LIST_WIDTH } from '../AssetInfo/AssetInfo'
 import TimeAgo from 'react-timeago'
 import EthereumIcon from '../EthereumIcon'
 import { Notifier } from './ListingNotifierModal'
@@ -43,7 +43,6 @@ const MatchedAssetListing = ({ asset }: { asset: MatchedAsset }) => {
         }
       }}
       width="100%"
-      pr="8"
     >
       <Circle
         p="2"
