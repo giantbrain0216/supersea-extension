@@ -8,6 +8,7 @@ export type User = {
   isSubscriber: boolean
   isFounder: boolean
   role: 'FREE' | 'MEMBER' | 'SUBSCRIBER' | 'ADMIN'
+  membershipType: 'FOUNDER' | 'LIFETIME' | 'EXTERNAL' | 'SUBSCRIPTION'
 }
 
 const userContext = React.createContext<User | null>(null)
