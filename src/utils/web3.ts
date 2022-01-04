@@ -2,7 +2,7 @@ import Web3 from 'web3'
 
 const web3 = new Web3(
   new Web3.providers.HttpProvider(
-    'https://mainnet.infura.io/v3/d0b2b7a59f94446e9f6f6753c55764fe',
+    'https://mainnet.infura.io/v3/ee4107ea6ef147a29cc4b81672ac5d02',
   ),
 )
 
