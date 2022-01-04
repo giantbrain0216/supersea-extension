@@ -8,8 +8,12 @@ import {
 } from '@chakra-ui/react'
 import { FaShoppingCart } from 'react-icons/fa'
 import Toast from '../Toast'
-import { useExtensionConfig } from '../../utils/extensionConfig'
+import {
+  getExtensionConfig,
+  useExtensionConfig,
+} from '../../utils/extensionConfig'
 import { useUser } from '../../utils/user'
+import { fetchAsset } from '../../utils/api'
 
 export const BuyNowButtonUI = ({
   address,
@@ -64,12 +68,16 @@ export const BuyNowButtonUI = ({
           '0 1px 2px rgba(0, 0, 0, 0.15), inset 0 0 0 1px rgba(255, 255, 255, 0.15)',
         )}
         aria-label="Buy Now"
-        onClick={() => {
+        onClick={async () => {
           if (active) {
             setIsLoading(true)
+            const [asset, config] = await Promise.all([
+              fetchAsset(address, tokenId),
+              getExtensionConfig(false),
+            ])
             window.postMessage({
               method: 'SuperSea__Buy',
-              params: { address, tokenId },
+              params: { asset, gasPreset: config.gasPreset },
             })
             // Listen for errors, unsubscribe
             const messageListener = (event: any) => {

@@ -10,14 +10,8 @@ import { OrderSide } from 'opensea-js/lib/types'
   window.addEventListener('message', async (event: any) => {
     if (event.origin !== 'https://opensea.io') return
     if (event.data.method === 'SuperSea__Buy') {
-      const seaport = new OpenSeaPort((window as any).ethereum, {
-        networkName: Network.Main,
-      })
       try {
-        const asset = await fetch(
-          `https://api.opensea.io/api/v1/asset/${event.data.params.address}/${event.data.params.tokenId}`,
-        ).then((res) => res.json())
-        const order = asset.orders.filter(
+        const order = event.data.params.asset.orders.filter(
           (order: any) => order.side === OrderSide.Sell,
         )[0]
         const formattedOrder = Object.keys(order).reduce((acc: any, key) => {
@@ -30,6 +24,33 @@ import { OrderSide } from 'opensea-js/lib/types'
         formattedOrder.maker = formattedOrder.maker.address
         formattedOrder.taker = formattedOrder.taker.address
         formattedOrder.feeRecipient = formattedOrder.feeRecipient.address
+        const seaport = new OpenSeaPort((window as any).ethereum, {
+          networkName: Network.Main,
+        })
+        const _sendTransactionAsync =
+          // @ts-ignore
+          seaport._wyvernProtocol.wyvernExchange.atomicMatch_
+            .sendTransactionAsync
+
+        if (event.data.params.gasPreset) {
+          // @ts-ignore
+          seaport._wyvernProtocol.wyvernExchange.atomicMatch_.sendTransactionAsync = (
+            ...args: any
+          ) => {
+            args[
+              args.length - 1
+            ].maxPriorityFeePerGas = event.data.params.gasPreset.priorityFee.toString(
+              16,
+            )
+            args[
+              args.length - 1
+            ].maxFeePerGas = event.data.params.gasPreset.fee.toString(16)
+            return _sendTransactionAsync.apply(
+              (seaport as any)._wyvernProtocol.wyvernExchange.atomicMatch_,
+              args,
+            )
+          }
+        }
         await seaport.fulfillOrder({
           order: formattedOrder,
           accountAddress: (window as any).ethereum.selectedAddress,

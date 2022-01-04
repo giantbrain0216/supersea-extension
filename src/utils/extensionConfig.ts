@@ -4,12 +4,14 @@ export type ExtensionConfig = {
   enabled: boolean
   quickBuyEnabled: boolean
   notificationSounds: boolean
+  gasPreset: { priorityFee: number; fee: number } | null
 }
 
 const DEFAULTS: ExtensionConfig = {
   enabled: true,
   quickBuyEnabled: false,
   notificationSounds: true,
+  gasPreset: null,
 }
 
 let configPromise: null | Promise<Record<string, any>> = null
