@@ -37,14 +37,14 @@ import { OrderSide } from 'opensea-js/lib/types'
           seaport._wyvernProtocol.wyvernExchange.atomicMatch_.sendTransactionAsync = (
             ...args: any
           ) => {
-            args[
-              args.length - 1
-            ].maxPriorityFeePerGas = event.data.params.gasPreset.priorityFee.toString(
-              16,
-            )
-            args[
-              args.length - 1
-            ].maxFeePerGas = event.data.params.gasPreset.fee.toString(16)
+            args[args.length - 1].maxPriorityFeePerGas = (
+              event.data.params.gasPreset.priorityFee *
+              10 ** 9
+            ).toString(16)
+            args[args.length - 1].maxFeePerGas = (
+              event.data.params.gasPreset.fee *
+              10 ** 9
+            ).toString(16)
             return _sendTransactionAsync.apply(
               (seaport as any)._wyvernProtocol.wyvernExchange.atomicMatch_,
               args,

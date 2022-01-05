@@ -4,18 +4,22 @@ export type ExtensionConfig = {
   enabled: boolean
   quickBuyEnabled: boolean
   notificationSounds: boolean
-  gasPreset: { priorityFee: number; fee: number } | null
+  quickBuyGasPreset: 'none' | 'fixed' | 'optimal'
+  fixedGas: { priorityFee: number; fee: number }
 }
 
 const DEFAULTS: ExtensionConfig = {
   enabled: true,
   quickBuyEnabled: false,
   notificationSounds: true,
-  gasPreset: null,
+  quickBuyGasPreset: 'none',
+  fixedGas: { priorityFee: 25, fee: 300 },
 }
 
 let configPromise: null | Promise<Record<string, any>> = null
-export const getExtensionConfig = async (cached = true) => {
+export const getExtensionConfig = async (
+  cached = true,
+): Promise<ExtensionConfig> => {
   if (!configPromise || !cached) {
     configPromise = new Promise((resolve) => {
       if (process.env.NODE_ENV === 'production') {

@@ -542,3 +542,10 @@ export const fetchTokenProperties = async (
     traits: res.contract.traits,
   }
 }
+
+// TODO: Change to production endpoint
+export const fetchOptimalGasPreset = async () => {
+  return fetch(
+    'https://non-fungible-website-git-gas-api-minmax.vercel.app/api/gas',
+  ).then((res) => res.json())
+}
