@@ -48,8 +48,8 @@ export const UserProvider = ({
       const role = user?.role || 'FREE'
 
       setUser({
-        isSubscriber: Boolean(SUBSCRIBER_ROLES.includes(role)),
-        isFounder: Boolean(FOUNDER_ROLES.includes(role)),
+        isSubscriber: isSubscriber(role),
+        isFounder: isFounder(role),
         role,
       })
     })()
@@ -59,3 +59,9 @@ export const UserProvider = ({
 
   return <Provider value={user}>{children}</Provider>
 }
+
+export const isSubscriber = (role: User['role']) =>
+  Boolean(SUBSCRIBER_ROLES.includes(role))
+
+export const isFounder = (role: User['role']) =>
+  Boolean(FOUNDER_ROLES.includes(role))
