@@ -27,6 +27,7 @@ import { OrderSide } from 'opensea-js/lib/types'
         const seaport = new OpenSeaPort((window as any).ethereum, {
           networkName: Network.Main,
         })
+        seaport.gasIncreaseFactor = 1.3
         const _sendTransactionAsync =
           // @ts-ignore
           seaport._wyvernProtocol.wyvernExchange.atomicMatch_
