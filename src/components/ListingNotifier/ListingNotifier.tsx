@@ -313,6 +313,7 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
                   .filter((asset: MatchedAsset) => Boolean(asset.notifier))
                 filteredAssets.forEach((asset: MatchedAsset) => {
                   addedListings[asset.listingId] = true
+                  const rank = rarities?.tokenRarity[asset.tokenId] || null
                   if (sendNotification) {
                     chrome.runtime.sendMessage(
                       {
@@ -326,9 +327,11 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
                             iconUrl: asset.image,
                             requireInteraction: true,
                             silent: true,
-                            message: `${asset.name} (${readableEthValue(
-                              +asset.price,
-                            )} ${asset.currency})`,
+                            message: `${rank ? `Rank #${rank} - ` : ''}${
+                              asset.name
+                            } (${readableEthValue(+asset.price)} ${
+                              asset.currency
+                            })`,
                           },
                         },
                       },
