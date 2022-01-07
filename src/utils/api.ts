@@ -131,6 +131,7 @@ const refreshTokenQuery = gql`
       accessToken
       account {
         role
+        membershipType
       }
     }
   }
@@ -143,7 +144,11 @@ const tokenClient = new GraphQLClient('https://api.nonfungible.tools/graphql', {
 
 const userSema = new Sema(1)
 let cachedUser:
-  | { accessToken: string; role: User['role'] }
+  | {
+      accessToken: string
+      role: User['role']
+      membershipType: User['membershipType']
+    }
   | null
   | undefined = undefined
 export const getUser = async (refresh = false) => {
@@ -158,7 +163,11 @@ export const getUser = async (refresh = false) => {
     refreshToken: { accessToken, account },
   } = await tokenClient.request(refreshTokenQuery)
 
-  cachedUser = { accessToken, role: account?.role || 'FREE' }
+  cachedUser = {
+    accessToken,
+    role: account?.role || 'FREE',
+    membershipType: account?.membershipType,
+  }
   userSema.release()
 
   return cachedUser
@@ -179,6 +188,10 @@ const nonFungibleRequest = async (
       accessToken
         ? {
             Authorization: accessToken,
+            'X-NonFungibleTools-Role': getUserRoleHeader(
+              user.role,
+              user.membershipType,
+            ),
           }
         : {},
     )
@@ -213,6 +226,13 @@ export const floorPriceLoader = new DataLoader(
     maxBatchSize: 1,
   },
 )
+
+const getUserRoleHeader = (
+  role: User['role'],
+  membershipType: User['membershipType'],
+) => {
+  return `${role}-${membershipType}` as const
+}
 
 export const fetchFloorPrice = (collectionSlug: string) => {
   return floorPriceLoader.load(collectionSlug) as Promise<Floor>
@@ -349,8 +369,14 @@ const assetLoader = new DataLoader(
   },
 )
 
-export const fetchAsset = (address: string, tokenId: number) => {
+export const fetchAssetBatched = (address: string, tokenId: number) => {
   return assetLoader.load(`${address}_${tokenId}`) as Promise<Asset>
+}
+
+export const fetchAsset = async (address: string, tokenId: string) => {
+  return fetch(
+    `https://api.opensea.io/api/v1/asset/${address}/${tokenId}`,
+  ).then((res) => res.json())
 }
 
 export const fetchAllCollectionsForUser = async (
@@ -535,4 +561,9 @@ export const fetchTokenProperties = async (
     rarityTable: res.contract.rarityTable,
     traits: res.contract.traits,
   }
+}
+
+// TODO: Change to production endpoint
+export const fetchOptimalGasPreset = async () => {
+  return fetch('https://nonfungible.tools/api/gas').then((res) => res.json())
 }

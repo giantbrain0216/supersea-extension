@@ -18,6 +18,7 @@ import {
   ModalCloseButton,
   FormControl,
   FormLabel,
+  FormHelperText,
   HStack,
   Input,
   useColorModeValue,
@@ -44,6 +45,7 @@ import { DeleteIcon } from '@chakra-ui/icons'
 import { Trait } from '../../utils/api'
 import TraitTag from '../SearchResults/TraitTag'
 import LockedFeature from '../LockedFeature'
+import { useExtensionConfig } from '../../utils/extensionConfig'
 
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 let notifierNumber = 0
@@ -55,6 +57,7 @@ export type Notifier = {
   lowestRarity: RarityName
   includeAuctions: boolean
   traits: string[]
+  autoQuickBuy: boolean
 }
 
 const ListingNotifierModal = ({
@@ -89,11 +92,13 @@ const ListingNotifierModal = ({
   onChangeSendNotification: (sendNotification: boolean) => void
   onRetry: () => void
 } & Omit<React.ComponentProps<typeof Modal>, 'children'>) => {
+  const [extensionConfig] = useExtensionConfig()
   const [minPrice, setMinPrice] = useState('')
   const [maxPrice, setMaxPrice] = useState('')
   const [includeAuctions, setIncludeAuctions] = useState(false)
   const [lowestRarity, setLowestRarity] = useState<RarityName>('Common')
   const [traits, setTraits] = useState<string[]>([])
+  const [autoQuickBuy, setAutoQuickBuy] = useState(false)
   const [creatingNotifier, setCreatingNotifier] = useState(false)
 
   const { colorMode } = useColorMode()
@@ -235,6 +240,44 @@ const ListingNotifierModal = ({
                   }}
                 />
               </FormControl>
+              <FormControl isDisabled={!isSubscriber}>
+                <FormLabel fontSize="sm" htmlFor="auto-quick-buy" mb="3">
+                  Trigger Quick Buy
+                  {!isSubscriber ? <LockedFeature ml="0.5em" /> : null}
+                </FormLabel>
+                <HStack spacing="2" alignItems="center">
+                  <Switch
+                    id="auto-quick-buy"
+                    isChecked={autoQuickBuy}
+                    isDisabled={!extensionConfig?.quickBuyEnabled}
+                    onChange={(event) => {
+                      setAutoQuickBuy(event.target.checked && isSubscriber)
+                    }}
+                  />
+                  {isSubscriber && !extensionConfig?.quickBuyEnabled ? (
+                    <Text opacity="0.75" fontSize="sm">
+                      Quick Buy is disabled.{' '}
+                      <Button
+                        size="sm"
+                        variant="link"
+                        color="blue.400"
+                        onClick={() => {
+                          chrome.runtime.sendMessage({
+                            method: 'openPopup',
+                            params: { action: 'activateQuickBuy' },
+                          })
+                        }}
+                      >
+                        Enable?
+                      </Button>
+                    </Text>
+                  ) : null}
+                </HStack>
+                <FormHelperText maxWidth="300px" lineHeight="1.6em">
+                  Automatically trigger Quick Buy when a listing that matches
+                  this notifier is posted.
+                </FormHelperText>
+              </FormControl>
               <Flex justify="flex-end" width="100%">
                 <Button
                   isLoading={creatingNotifier}
@@ -249,6 +292,7 @@ const ListingNotifierModal = ({
                       lowestRarity,
                       includeAuctions,
                       traits,
+                      autoQuickBuy,
                     })
                     notifierNumber++
                     unstable_batchedUpdates(() => {
@@ -256,6 +300,7 @@ const ListingNotifierModal = ({
                       setMaxPrice('')
                       setLowestRarity('Common')
                       setTraits([])
+                      setAutoQuickBuy(false)
                       setCreatingNotifier(false)
                     })
                   }}
@@ -286,12 +331,20 @@ const ListingNotifierModal = ({
                         <Th>Price Range</Th>
                         <Th>Lowest Rarity</Th>
                         <Th>Traits</Th>
+                        <Th>Quick Buy</Th>
                         <Th></Th>
                       </Tr>
                     </Thead>
                     <Tbody>
                       {addedNotifiers.map(
-                        ({ id, minPrice, maxPrice, lowestRarity, traits }) => {
+                        ({
+                          id,
+                          minPrice,
+                          maxPrice,
+                          lowestRarity,
+                          traits,
+                          autoQuickBuy,
+                        }) => {
                           return (
                             <Tr key={id}>
                               <Td px="2" py="1">
@@ -370,6 +423,7 @@ const ListingNotifierModal = ({
                                   'Any'
                                 )}
                               </Td>
+                              <Td>{autoQuickBuy ? 'On' : 'Off'}</Td>
                               <Td maxWidth="30px" textAlign="right">
                                 <IconButton
                                   icon={<DeleteIcon />}
@@ -432,7 +486,7 @@ const ListingNotifierModal = ({
                       } else if (pollStatus === 'ACTIVE') {
                         return (
                           <>
-                            <Text fontSize="sm">Checking every 3 seconds</Text>
+                            <Text fontSize="sm">Checking every 2 seconds</Text>
                             <Icon
                               as={BiRefresh}
                               width="18px"

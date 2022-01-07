@@ -11,7 +11,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { unstable_batchedUpdates } from 'react-dom'
 import {
   Asset,
-  fetchAsset,
+  fetchAssetBatched,
   fetchCollectionAddress,
   fetchRaritiesWithTraits,
   Rarities,
@@ -152,7 +152,7 @@ const SearchResults = ({ collectionSlug }: { collectionSlug: string }) => {
         return
       }
       loadingAssetMapRef.current[iteratorID] = true
-      const asset = await fetchAsset(address, iteratorID)
+      const asset = await fetchAssetBatched(address, iteratorID)
       updateBatch[iteratorID] = asset
       batchUpdate()
     })
