@@ -15,6 +15,100 @@ import {
 import { useUser } from '../../utils/user'
 import { fetchAsset, fetchOptimalGasPreset } from '../../utils/api'
 
+export const triggerQuickBuy = async ({
+  isFounder,
+  toast,
+  address,
+  tokenId,
+  onComplete,
+}: {
+  isFounder: boolean
+  toast: ReturnType<typeof useToast>
+  address: string
+  tokenId: string
+  onComplete: () => void
+}) => {
+  const [asset, gasPreset] = await Promise.all([
+    fetchAsset(address, tokenId).catch((e) => {
+      return {}
+    }),
+    (async () => {
+      const config = await getExtensionConfig(false)
+      if (config.quickBuyGasPreset === 'fixed') {
+        return config.fixedGas
+      } else if (config.quickBuyGasPreset === 'optimal' && isFounder) {
+        try {
+          const optimalGasPreset = await fetchOptimalGasPreset()
+          return optimalGasPreset
+        } catch (err) {
+          console.error(err)
+          toast({
+            duration: 7500,
+            position: 'bottom-right',
+            render: () => (
+              <Toast
+                text={
+                  'Unable to load optimal gas settings, using MetaMask defaults.'
+                }
+                type="error"
+              />
+            ),
+          })
+          return null
+        }
+      }
+      return null
+    })(),
+  ])
+  if (!asset.orders) {
+    toast({
+      duration: 7500,
+      position: 'bottom-right',
+      render: () => (
+        <Toast text={'Unable to get asset listing.'} type="error" />
+      ),
+    })
+    onComplete()
+    return
+  }
+  window.postMessage({
+    method: 'SuperSea__Buy',
+    params: { asset, gasPreset },
+  })
+  // Listen for errors, unsubscribe
+  const messageListener = (event: any) => {
+    if (
+      event.data.method === 'SuperSea__Buy__Error' &&
+      event.data.params.asset.id === asset.id
+    ) {
+      if (!/user denied/i.test(event.data.params.error.message)) {
+        toast({
+          duration: 7500,
+          position: 'bottom-right',
+          render: () => (
+            <Toast
+              text={
+                "Unable to buy item. This is most likely because the item is no longer listed, or because there aren't enough funds in your wallet."
+              }
+              type="error"
+            />
+          ),
+        })
+      }
+      window.removeEventListener('message', messageListener)
+      onComplete()
+    } else if (
+      event.data.method === 'SuperSea__Buy__Success' &&
+      event.data.params.asset.id === asset.id
+    ) {
+      window.removeEventListener('message', messageListener)
+      onComplete()
+    }
+  }
+
+  window.addEventListener('message', messageListener)
+}
+
 export const BuyNowButtonUI = ({
   address,
   tokenId,
@@ -72,88 +166,13 @@ export const BuyNowButtonUI = ({
         onClick={async () => {
           if (active) {
             setIsLoading(true)
-            const [asset, gasPreset] = await Promise.all([
-              fetchAsset(address, tokenId).catch((e) => {
-                return {}
-              }),
-              (async () => {
-                const config = await getExtensionConfig(false)
-                if (config.quickBuyGasPreset === 'fixed') {
-                  return config.fixedGas
-                } else if (
-                  config.quickBuyGasPreset === 'optimal' &&
-                  isFounder
-                ) {
-                  try {
-                    const optimalGasPreset = await fetchOptimalGasPreset()
-                    return optimalGasPreset
-                  } catch (err) {
-                    console.error(err)
-                    toast({
-                      duration: 7500,
-                      position: 'bottom-right',
-                      render: () => (
-                        <Toast
-                          text={
-                            'Unable to load optimal gas settings, using MetaMask defaults.'
-                          }
-                          type="error"
-                        />
-                      ),
-                    })
-                    return null
-                  }
-                }
-                return null
-              })(),
-            ])
-            if (!asset.orders) {
-              toast({
-                duration: 7500,
-                position: 'bottom-right',
-                render: () => (
-                  <Toast text={'Unable to get asset listing.'} type="error" />
-                ),
-              })
-              setIsLoading(false)
-              return
-            }
-            window.postMessage({
-              method: 'SuperSea__Buy',
-              params: { asset, gasPreset },
+            triggerQuickBuy({
+              isFounder,
+              toast,
+              tokenId,
+              address,
+              onComplete: () => setIsLoading(false),
             })
-            // Listen for errors, unsubscribe
-            const messageListener = (event: any) => {
-              if (
-                event.data.method === 'SuperSea__Buy__Error' &&
-                event.data.params.asset.id === asset.id
-              ) {
-                if (!/user denied/i.test(event.data.params.error.message)) {
-                  toast({
-                    duration: 7500,
-                    position: 'bottom-right',
-                    render: () => (
-                      <Toast
-                        text={
-                          "Unable to buy item. This is most likely because the item is no longer listed, or because there aren't enough funds in your wallet."
-                        }
-                        type="error"
-                      />
-                    ),
-                  })
-                }
-                window.removeEventListener('message', messageListener)
-                setIsLoading(false)
-              } else if (
-                event.data.method === 'SuperSea__Buy__Success' &&
-                event.data.params.asset.id === asset.id
-              ) {
-                window.removeEventListener('message', messageListener)
-                setIsLoading(false)
-              }
-            }
-
-            window.addEventListener('message', messageListener)
           } else {
             chrome.runtime.sendMessage({
               method: 'openPopup',

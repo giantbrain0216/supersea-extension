@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import _ from 'lodash'
 import React, { useEffect, useState, useRef } from 'react'
-import { Button, Flex, Icon, Tooltip, Box } from '@chakra-ui/react'
+import { Button, Flex, Icon, Tooltip, Box, useToast } from '@chakra-ui/react'
 import { BiRefresh } from 'react-icons/bi'
 import Logo from '../Logo'
 import ListingNotifierModal, { Notifier } from './ListingNotifierModal'
@@ -16,8 +16,9 @@ import {
 } from '../../utils/api'
 import { determineRarityType, RARITY_TYPES } from '../../utils/rarity'
 import { useUser } from '../../utils/user'
+import { triggerQuickBuy } from '../AssetInfo/BuyNowButton'
 
-const POLL_INTERVAL_MS = 3000
+const POLL_INTERVAL_MS = 2000
 const POLL_RETRIES = 15
 
 const createPollTime = (bufferSeconds = 0) =>
@@ -125,6 +126,8 @@ let DEFAULT_STATE: CachedState = {
 let cachedState = DEFAULT_STATE
 
 const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
+  const toast = useToast()
+  const { isFounder } = useUser() || { isFounder: false }
   const [modalOpen, setModalOpen] = useState(false)
 
   const stateToRestore =
@@ -294,13 +297,18 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
                 retriesRef.current += 1
               }
               if (fetchedAssets) {
+                // Prioritize notifiers with quick buy, if multiple notifiers match
+                // we don't want a non-quick-buy one to prevent the quick buy from happening.
+                const sortedNotifiers = [...activeNotifiers].sort(
+                  (a, b) => Number(b.autoQuickBuy) - Number(a.autoQuickBuy),
+                )
                 const filteredAssets = fetchedAssets
                   .filter(Boolean)
                   .filter(
                     (asset: MatchedAsset) => !addedListings[asset.listingId],
                   )
                   .map((asset: MatchedAsset) => {
-                    const notifier = activeNotifiers.find((notifier) =>
+                    const notifier = sortedNotifiers.find((notifier) =>
                       listingMatchesNotifier({
                         asset,
                         notifier,
@@ -311,40 +319,54 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
                     return { ...asset, notifier }
                   })
                   .filter((asset: MatchedAsset) => Boolean(asset.notifier))
-                filteredAssets.forEach((asset: MatchedAsset) => {
-                  addedListings[asset.listingId] = true
-                  if (sendNotification) {
-                    chrome.runtime.sendMessage(
-                      {
-                        method: 'notify',
-                        params: {
-                          id: asset.listingId,
-                          openOnClick: `https://opensea.io/assets/${asset.contractAddress}/${asset.tokenId}`,
-                          options: {
-                            title: 'SuperSea - New Listing',
-                            type: 'basic',
-                            iconUrl: asset.image,
-                            requireInteraction: true,
-                            silent: true,
-                            message: `${asset.name} (${readableEthValue(
-                              +asset.price,
-                            )} ${asset.currency})`,
+                filteredAssets.forEach(
+                  ({
+                    notifier,
+                    ...asset
+                  }: MatchedAsset & { notifier: Notifier }) => {
+                    addedListings[asset.listingId] = true
+                    if (sendNotification) {
+                      chrome.runtime.sendMessage(
+                        {
+                          method: 'notify',
+                          params: {
+                            id: asset.listingId,
+                            openOnClick: `https://opensea.io/assets/${asset.contractAddress}/${asset.tokenId}`,
+                            options: {
+                              title: 'SuperSea - New Listing',
+                              type: 'basic',
+                              iconUrl: asset.image,
+                              requireInteraction: true,
+                              silent: true,
+                              message: `${asset.name} (${readableEthValue(
+                                +asset.price,
+                              )} ${asset.currency})`,
+                            },
                           },
                         },
-                      },
-                      (notificationId: string) => {
-                        if (playSound) {
-                          throttledPlayNotificationSound()
-                        }
-                        setNotificationIds((ids) =>
-                          ids.concat([notificationId]),
-                        )
-                      },
-                    )
-                  } else if (playSound) {
-                    throttledPlayNotificationSound()
-                  }
-                })
+                        (notificationId: string) => {
+                          if (playSound) {
+                            throttledPlayNotificationSound()
+                          }
+                          setNotificationIds((ids) =>
+                            ids.concat([notificationId]),
+                          )
+                        },
+                      )
+                    } else if (playSound) {
+                      throttledPlayNotificationSound()
+                    }
+                    if (notifier.autoQuickBuy) {
+                      triggerQuickBuy({
+                        isFounder,
+                        address: asset.contractAddress,
+                        tokenId: asset.tokenId,
+                        toast,
+                        onComplete: () => {},
+                      })
+                    }
+                  },
+                )
                 setPollStatus('ACTIVE')
                 if (filteredAssets.length) {
                   setMatchedAssets((prev) => [...filteredAssets, ...prev])
