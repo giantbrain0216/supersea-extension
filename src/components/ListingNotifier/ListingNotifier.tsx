@@ -446,6 +446,7 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
         isRanked={rarities ? rarities.isRanked : null}
         isSubscriber={isSubscriber}
         addedNotifiers={activeNotifiers}
+        onRetry={() => setPollStatus('STARTING')}
         onAddNotifier={async (notifier) => {
           if (notifier.traits.length) {
             const address = await fetchCollectionAddress(collectionSlug)
