@@ -74,6 +74,7 @@ const ListingNotifierModal = ({
   sendNotification,
   onChangeSendNotification,
   onClearMatches,
+  onRetry,
   ...modalProps
 }: {
   addedNotifiers: Notifier[]
@@ -89,6 +90,7 @@ const ListingNotifierModal = ({
   sendNotification: boolean
   onClearMatches: () => void
   onChangeSendNotification: (sendNotification: boolean) => void
+  onRetry: () => void
 } & Omit<React.ComponentProps<typeof Modal>, 'children'>) => {
   const [extensionConfig] = useExtensionConfig()
   const [minPrice, setMinPrice] = useState('')
@@ -499,7 +501,14 @@ const ListingNotifierModal = ({
                         return (
                           <>
                             <Text fontSize="sm" color="red.400">
-                              Unable to retrieve listings.
+                              Unable to retrieve listings.{' '}
+                              <Button
+                                size="sm"
+                                variant="link"
+                                onClick={onRetry}
+                              >
+                                Retry?
+                              </Button>
                             </Text>
                           </>
                         )

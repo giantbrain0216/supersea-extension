@@ -325,6 +325,7 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
                     ...asset
                   }: MatchedAsset & { notifier: Notifier }) => {
                     addedListings[asset.listingId] = true
+                    const rank = rarities?.tokenRarity[asset.tokenId] || null
                     if (sendNotification) {
                       chrome.runtime.sendMessage(
                         {
@@ -338,9 +339,11 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
                               iconUrl: asset.image,
                               requireInteraction: true,
                               silent: true,
-                              message: `${asset.name} (${readableEthValue(
-                                +asset.price,
-                              )} ${asset.currency})`,
+                              message: `${rank ? `Rank #${rank} - ` : ''}${
+                                asset.name
+                              } (${readableEthValue(+asset.price)} ${
+                                asset.currency
+                              })`,
                             },
                           },
                         },
@@ -465,6 +468,7 @@ const ListingNotifier = ({ collectionSlug }: { collectionSlug: string }) => {
         isRanked={rarities ? rarities.isRanked : null}
         isSubscriber={isSubscriber}
         addedNotifiers={activeNotifiers}
+        onRetry={() => setPollStatus('STARTING')}
         onAddNotifier={async (notifier) => {
           if (notifier.traits.length) {
             const address = await fetchCollectionAddress(collectionSlug)
