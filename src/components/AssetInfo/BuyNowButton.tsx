@@ -8,8 +8,12 @@ import {
 } from '@chakra-ui/react'
 import { FaShoppingCart } from 'react-icons/fa'
 import Toast from '../Toast'
-import { useExtensionConfig } from '../../utils/extensionConfig'
+import {
+  getExtensionConfig,
+  useExtensionConfig,
+} from '../../utils/extensionConfig'
 import { useUser } from '../../utils/user'
+import { fetchAsset, fetchOptimalGasPreset } from '../../utils/api'
 
 export const BuyNowButtonUI = ({
   address,
@@ -21,6 +25,7 @@ export const BuyNowButtonUI = ({
   active: boolean
 }) => {
   const toast = useToast()
+  const { isFounder } = useUser() || { isFounder: false }
   const [isLoading, setIsLoading] = useState(false)
 
   return (
@@ -64,19 +69,64 @@ export const BuyNowButtonUI = ({
           '0 1px 2px rgba(0, 0, 0, 0.15), inset 0 0 0 1px rgba(255, 255, 255, 0.15)',
         )}
         aria-label="Buy Now"
-        onClick={() => {
+        onClick={async () => {
           if (active) {
             setIsLoading(true)
+            const [asset, gasPreset] = await Promise.all([
+              fetchAsset(address, tokenId).catch((e) => {
+                return {}
+              }),
+              (async () => {
+                const config = await getExtensionConfig(false)
+                if (config.quickBuyGasPreset === 'fixed') {
+                  return config.fixedGas
+                } else if (
+                  config.quickBuyGasPreset === 'optimal' &&
+                  isFounder
+                ) {
+                  try {
+                    const optimalGasPreset = await fetchOptimalGasPreset()
+                    return optimalGasPreset
+                  } catch (err) {
+                    console.error(err)
+                    toast({
+                      duration: 7500,
+                      position: 'bottom-right',
+                      render: () => (
+                        <Toast
+                          text={
+                            'Unable to load optimal gas settings, using MetaMask defaults.'
+                          }
+                          type="error"
+                        />
+                      ),
+                    })
+                    return null
+                  }
+                }
+                return null
+              })(),
+            ])
+            if (!asset.orders) {
+              toast({
+                duration: 7500,
+                position: 'bottom-right',
+                render: () => (
+                  <Toast text={'Unable to get asset listing.'} type="error" />
+                ),
+              })
+              setIsLoading(false)
+              return
+            }
             window.postMessage({
               method: 'SuperSea__Buy',
-              params: { address, tokenId },
+              params: { asset, gasPreset },
             })
             // Listen for errors, unsubscribe
             const messageListener = (event: any) => {
               if (
                 event.data.method === 'SuperSea__Buy__Error' &&
-                event.data.params.address === address &&
-                event.data.params.tokenId === tokenId
+                event.data.params.asset.id === asset.id
               ) {
                 if (!/user denied/i.test(event.data.params.error.message)) {
                   toast({
@@ -96,8 +146,7 @@ export const BuyNowButtonUI = ({
                 setIsLoading(false)
               } else if (
                 event.data.method === 'SuperSea__Buy__Success' &&
-                event.data.params.address === address &&
-                event.data.params.tokenId === tokenId
+                event.data.params.asset.id === asset.id
               ) {
                 window.removeEventListener('message', messageListener)
                 setIsLoading(false)

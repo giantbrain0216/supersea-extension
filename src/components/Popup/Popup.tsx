@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Box,
   Text,
@@ -19,9 +19,13 @@ import { ReactComponent as DiscordSvg } from '../../assets/discord.svg'
 import { ReactComponent as OpenSeaSvg } from '../../assets/opensea.svg'
 import { ReactComponent as EtherscanSvg } from '../../assets/etherscan.svg'
 import { ReactComponent as LogoSvg } from '../../assets/logo-with-text.svg'
-import QuickBuyToggle from './QuickBuyToggle'
+import QuickBuySettings from './QuickBuySettings'
 import GlobalToggle from './GlobalToggle'
-import { useExtensionConfig } from '../../utils/extensionConfig'
+import {
+  getExtensionConfig,
+  saveExtensionConfig,
+  useExtensionConfig,
+} from '../../utils/extensionConfig'
 import { useUser } from '../../utils/user'
 
 const Popup = () => {
@@ -61,9 +65,11 @@ const Popup = () => {
     }
   }, [isChanged, toast])
 
+  console.log({ extensionConfig, user })
+
   return (
     <Box
-      bg="#323E48"
+      bg="gray.800"
       width="400px"
       fontSize="16px"
       maxHeight="550px"
@@ -117,17 +123,31 @@ const Popup = () => {
                     })
                   }}
                 />,
-                <QuickBuyToggle
-                  key="quickBuyToggle"
+                <QuickBuySettings
+                  key="quickBuySettings"
                   user={user}
                   isDisabled={!extensionConfig.enabled}
                   isChecked={extensionConfig.quickBuyEnabled}
                   switchRef={quickBuyToggleRef}
-                  onChange={(quickBuyEnabled) => {
+                  gasPreset={extensionConfig.quickBuyGasPreset}
+                  fixedGas={extensionConfig.fixedGas}
+                  onChangeEnabled={(quickBuyEnabled) => {
                     setIsChanged(true)
                     setExtensionConfig({
                       ...extensionConfig,
                       quickBuyEnabled,
+                    })
+                  }}
+                  onChangeGasPreset={(quickBuyGasPreset) => {
+                    setExtensionConfig({
+                      ...extensionConfig,
+                      quickBuyGasPreset,
+                    })
+                  }}
+                  onChangeFixedGas={(fixedGas) => {
+                    setExtensionConfig({
+                      ...extensionConfig,
+                      fixedGas,
                     })
                   }}
                 />,

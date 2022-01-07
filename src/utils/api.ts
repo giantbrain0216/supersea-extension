@@ -349,8 +349,14 @@ const assetLoader = new DataLoader(
   },
 )
 
-export const fetchAsset = (address: string, tokenId: number) => {
+export const fetchAssetBatched = (address: string, tokenId: number) => {
   return assetLoader.load(`${address}_${tokenId}`) as Promise<Asset>
+}
+
+export const fetchAsset = async (address: string, tokenId: string) => {
+  return fetch(
+    `https://api.opensea.io/api/v1/asset/${address}/${tokenId}`,
+  ).then((res) => res.json())
 }
 
 export const fetchAllCollectionsForUser = async (
@@ -535,4 +541,9 @@ export const fetchTokenProperties = async (
     rarityTable: res.contract.rarityTable,
     traits: res.contract.traits,
   }
+}
+
+// TODO: Change to production endpoint
+export const fetchOptimalGasPreset = async () => {
+  return fetch('https://nonfungible.tools/api/gas').then((res) => res.json())
 }
