@@ -7,12 +7,14 @@ import BundleVerification from './components/BundleVerification'
 import AssetInfo from './components/AssetInfo/AssetInfo'
 import ProfileSummary from './components/ProfileSummary'
 import GlobalStyles from './components/GlobalStyles'
+import RarityDisclaimer from './components/RarityDisclaimer'
 import { getExtensionConfig } from './utils/extensionConfig'
-import { fetchGlobalCSS, fetchSelectors } from './utils/api'
+import { fetchGlobalCSS, fetchSelectors, getUser } from './utils/api'
 import { injectElement, selectElement, Selectors } from './utils/selector'
 import SearchResults from './components/SearchResults/SearchResults'
 import CollectionMenuItem from './components/CollectionMenuItem'
 import ListingNotifier from './components/ListingNotifier/ListingNotifier'
+import { isSubscriber } from './utils/user'
 
 const NODE_PROCESSED_DATA_KEY = '__SuperSea__Processed'
 
@@ -370,9 +372,33 @@ const injectListingNotifier = async () => {
 
 const throttledInjectListingNotifier = _.throttle(injectListingNotifier, 250)
 
+const injectRarityDisclaimer = async () => {
+  const user = await getUser()
+  if (user && isSubscriber(user.role)) {
+    chrome.storage.local.get(
+      ['rarityDisclaimerSeenAt'],
+      ({ rarityDisclaimerSeenAt }) => {
+        if (rarityDisclaimerSeenAt) return
+        const container = document.createElement('div')
+        document.body.appendChild(container)
+        injectReact(
+          <RarityDisclaimer
+            onClose={() => {
+              chrome.storage.local.set({ rarityDisclaimerSeenAt: Date.now() })
+              ReactDOM.unmountComponentAtNode(container as Element)
+            }}
+          />,
+          container,
+        )
+      },
+    )
+  }
+}
+
 const setupInjections = async () => {
   injectBundleVerification()
   injectAssetInfo()
+  injectRarityDisclaimer()
   injectCollectionMenu()
   injectListingNotifier()
 
