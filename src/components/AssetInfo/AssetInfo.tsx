@@ -56,6 +56,7 @@ const MEMBERSHIP_ADDRESS = '0x24e047001f0ac15f72689d3f5cd0b0f52b1abdf9'
 // Temporary until we do this flagging on the backend
 const FLAGGED_INACCURATE_RANKING_ADDRESSES = [
   '0x2acab3dea77832c09420663b0e1cb386031ba17b',
+  '0xf1268733c6fb05ef6be9cf23d24436dcd6e0b35e',
 ]
 
 const replaceImageRateLimit = RateLimit(3)
