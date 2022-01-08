@@ -1,10 +1,11 @@
 import { useEffect, useState, useContext, useCallback } from 'react'
-import { CheckIcon } from '@chakra-ui/icons'
+import { CheckIcon, WarningTwoIcon } from '@chakra-ui/icons'
 import {
   Box,
   Flex,
   Text,
   VStack,
+  HStack,
   Icon,
   Spinner,
   Link,
@@ -52,6 +53,11 @@ export const LIST_HEIGHT = 62
 export const LIST_WIDTH = 140
 const MEMBERSHIP_ADDRESS = '0x24e047001f0ac15f72689d3f5cd0b0f52b1abdf9'
 
+// Temporary until we do this flagging on the backend
+const FLAGGED_INACCURATE_RANKING_ADDRESSES = [
+  '0x2acab3dea77832c09420663b0e1cb386031ba17b',
+]
+
 const replaceImageRateLimit = RateLimit(3)
 
 type Rarity = {
@@ -62,11 +68,13 @@ type Rarity = {
 }
 const RarityBadge = ({
   rarity,
+  isInaccurate,
   isSubscriber,
   isMembershipNFT,
   onOpenProperties,
 }: {
   rarity: Rarity | null
+  isInaccurate: boolean
   isSubscriber: boolean
   isMembershipNFT: boolean
   onOpenProperties: () => void
@@ -98,25 +106,47 @@ const RarityBadge = ({
       return ''
     })()
     return (
-      <Tooltip
-        isDisabled={!(rarity || isMembershipNFT)}
-        label={tooltipLabel}
-        size="lg"
-        hasArrow
-        bg="gray.700"
-        placement="top"
-        color="white"
-        px={3}
-        py={2}
-      >
-        <Text
-          fontWeight="500"
-          cursor={rarity ? 'pointer' : undefined}
-          onClick={rarity === null ? undefined : onOpenProperties}
+      <HStack spacing="1">
+        <Tooltip
+          isDisabled={!(rarity || isMembershipNFT)}
+          label={tooltipLabel}
+          size="lg"
+          hasArrow
+          bg="gray.700"
+          placement="top"
+          color="white"
+          px={3}
+          py={2}
         >
-          {rarity === null ? 'Unranked' : `#${rarity.rank}`}
-        </Text>
-      </Tooltip>
+          <Text
+            fontWeight="500"
+            cursor={rarity ? 'pointer' : undefined}
+            onClick={rarity === null ? undefined : onOpenProperties}
+          >
+            {rarity === null ? 'Unranked' : `#${rarity.rank}`}
+          </Text>
+        </Tooltip>
+        {isInaccurate ? (
+          <Tooltip
+            label="This collection's ranking has been reported to be inaccurate compared to the project's official rarity guide."
+            size="lg"
+            hasArrow
+            bg="gray.700"
+            placement="top"
+            color="white"
+            px={3}
+            py={2}
+          >
+            <WarningTwoIcon
+              opacity="0.75"
+              width="16x"
+              height="16px"
+              position="relative"
+              top="-1px"
+            />
+          </Tooltip>
+        ) : null}
+      </HStack>
     )
   }
   if (rarity && rarity.isRanked) {
@@ -569,6 +599,9 @@ const AssetInfo = ({
             {rarity !== undefined ? (
               <RarityBadge
                 isSubscriber={isSubscriber}
+                isInaccurate={FLAGGED_INACCURATE_RANKING_ADDRESSES.includes(
+                  address,
+                )}
                 rarity={rarity}
                 isMembershipNFT={isMembershipNFT}
                 onOpenProperties={() => setPropertiesModalOpen(true)}
