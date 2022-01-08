@@ -27,6 +27,7 @@ import {
   Thead,
   Tr,
 } from '@chakra-ui/react'
+import { ChevronDownIcon, ChevronUpIcon } from '@chakra-ui/icons'
 import Logo from './Logo'
 import { BiReceipt } from 'react-icons/bi'
 import { fetchAllCollectionsForUser, fetchFloorPrice } from '../utils/api'
@@ -50,6 +51,10 @@ const ProfileSummary = ({ shortenedAddress }: { shortenedAddress: string }) => {
   const [floorTotal, setFloorTotal] = useState(0)
   const [floorBreakdown, setFloorBreakdown] = useState<CollectionFloor[]>([])
   const [breakdownModalOpen, setBreakdownModalOpen] = useState(false)
+  const [breakdownSorting, setBreakdownSorting] = useState<{
+    sortBy: 'total' | 'unit'
+    ascending: boolean
+  }>({ sortBy: 'unit', ascending: false })
   const tableStripeColor = useColorModeValue('blackAlpha.100', 'whiteAlpha.100')
 
   useEffect(() => {
@@ -225,16 +230,83 @@ const ProfileSummary = ({ shortenedAddress }: { shortenedAddress: string }) => {
                         <Tr>
                           <Th>Owned</Th>
                           <Th>Collection</Th>
-                          <Th>Unit Floor Price</Th>
-                          <Th>Total Floor Price</Th>
+                          <Th
+                            cursor="pointer"
+                            whiteSpace="nowrap"
+                            onClick={() => {
+                              setBreakdownSorting(({ sortBy, ascending }) => {
+                                if (sortBy === 'total') {
+                                  return { sortBy: 'unit', ascending: false }
+                                }
+                                return {
+                                  sortBy: 'unit',
+                                  ascending: !ascending,
+                                }
+                              })
+                            }}
+                          >
+                            Unit Floor{' '}
+                            <Icon
+                              as={
+                                breakdownSorting.ascending
+                                  ? ChevronUpIcon
+                                  : ChevronDownIcon
+                              }
+                              width="1.5em"
+                              height="1.5em"
+                              verticalAlign="top"
+                              opacity={
+                                breakdownSorting.sortBy === 'unit' ? 1 : 0
+                              }
+                            />
+                          </Th>
+                          <Th
+                            cursor="pointer"
+                            whiteSpace="nowrap"
+                            onClick={() => {
+                              setBreakdownSorting(({ sortBy, ascending }) => {
+                                if (sortBy === 'unit') {
+                                  return { sortBy: 'total', ascending: false }
+                                }
+                                return {
+                                  sortBy: 'total',
+                                  ascending: !ascending,
+                                }
+                              })
+                            }}
+                          >
+                            Total Floor{' '}
+                            <Icon
+                              as={
+                                breakdownSorting.ascending
+                                  ? ChevronUpIcon
+                                  : ChevronDownIcon
+                              }
+                              width="1.5em"
+                              height="1.5em"
+                              verticalAlign="top"
+                              opacity={
+                                breakdownSorting.sortBy === 'total' ? 1 : 0
+                              }
+                            />
+                          </Th>
                         </Tr>
                       </Thead>
                       <Tbody>
                         {floorBreakdown
-                          .sort(
-                            (a, b) =>
-                              b.floor * a.ownedCount - a.floor * a.ownedCount,
-                          )
+                          .sort((a, b) => {
+                            if (breakdownSorting.sortBy === 'total') {
+                              return (
+                                (b.floor * b.ownedCount -
+                                  a.floor * a.ownedCount) *
+                                (breakdownSorting.ascending ? -1 : 1)
+                              )
+                            }
+                            return (
+                              (b.floor - a.floor) *
+                              (breakdownSorting.ascending ? -1 : 1)
+                            )
+                          })
                           .map(({ name, slug, image, floor, ownedCount }) => {
                             return (
                               <Tr key={slug}>

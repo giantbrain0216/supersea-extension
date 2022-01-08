@@ -123,7 +123,11 @@ const TraitSelect = ({
           // @ts-ignore
           onBlur={() => setFocused(false)}
           onFocus={() => setFocused(true)}
-          onChange={onChange as any}
+          onChange={(value: any) => {
+            // Defer update to hack around a bug where internal and external
+            // value state starts to mismatch
+            setTimeout(() => onChange(value), 0)
+          }}
           renderValue={(valueProps) => {
             return (
               <Input

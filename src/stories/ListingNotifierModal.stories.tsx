@@ -28,6 +28,7 @@ Default.args = {
       lowestRarity: 'Common',
       includeAuctions: false,
       traits: [],
+      autoQuickBuy: false,
     },
   ],
   onAddNotifier: () => Promise.resolve(),

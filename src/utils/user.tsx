@@ -8,6 +8,7 @@ export type User = {
   isSubscriber: boolean
   isFounder: boolean
   role: 'FREE' | 'MEMBER' | 'SUBSCRIBER' | 'ADMIN'
+  membershipType: 'FOUNDER' | 'LIFETIME' | 'EXTERNAL' | 'SUBSCRIPTION' | null
 }
 
 const userContext = React.createContext<User | null>(null)
@@ -46,11 +47,13 @@ export const UserProvider = ({
         return getUser()
       })()
       const role = user?.role || 'FREE'
+      const membershipType = (user as User).membershipType || null
 
       setUser({
-        isSubscriber: Boolean(SUBSCRIBER_ROLES.includes(role)),
-        isFounder: Boolean(FOUNDER_ROLES.includes(role)),
+        isSubscriber: isSubscriber(role),
+        isFounder: isFounder(role),
         role,
+        membershipType: membershipType,
       })
     })()
   }, [mockUser, loadFromBackgroundScript])
@@ -59,3 +62,9 @@ export const UserProvider = ({
 
   return <Provider value={user}>{children}</Provider>
 }
+
+export const isSubscriber = (role: User['role']) =>
+  Boolean(SUBSCRIBER_ROLES.includes(role))
+
+export const isFounder = (role: User['role']) =>
+  Boolean(FOUNDER_ROLES.includes(role))
