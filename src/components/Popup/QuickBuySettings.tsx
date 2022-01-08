@@ -35,6 +35,7 @@ const GasPresetOption = ({
   description: string
   onClick: () => void
 }>) => {
+  const isDisabled = requiresFounder && !isFounder
   return (
     <HStack
       borderRadius="md"
@@ -45,8 +46,9 @@ const GasPresetOption = ({
       transition="border-color 150ms"
       px="3"
       py="2"
-      cursor="pointer"
-      onClick={onClick}
+      cursor={isDisabled ? 'not-allowed' : 'pointer'}
+      opacity={isDisabled ? 0.5 : 1}
+      onClick={isDisabled ? undefined : onClick}
     >
       <Box flex="1 1 auto">
         <Text fontWeight="bold">

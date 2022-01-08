@@ -23,5 +23,10 @@ export const Default = Template.bind({})
 Default.args = {
   isChecked: true,
   isDisabled: false,
-  user: { isSubscriber: true, isFounder: false, role: 'SUBSCRIBER' },
+  user: {
+    isSubscriber: true,
+    isFounder: false,
+    role: 'SUBSCRIBER',
+    membershipType: 'SUBSCRIPTION',
+  },
 }
