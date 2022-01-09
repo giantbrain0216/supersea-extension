@@ -61,7 +61,7 @@
     "headerSelector": ".Panel--header"
   },
   "profileSummary": {
-    "accountTitleSelector": ".AccountHeader--member-date--text",
+    "accountTitleSelector": ".AccountHeader--subtitle",
     "accountEnsNameSelector": ".AccountHeader--name",
     "shortenedAddressSelector": ".AccountHeader--address"
   },

@@ -56,6 +56,7 @@ const refreshTokenMutation = gql`
       accessToken
       account {
         role
+        membershipType
       }
     }
   }
