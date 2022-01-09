@@ -56,6 +56,7 @@ const refreshTokenMutation = gql`
       accessToken
       account {
         role
+        membershipType
       }
     }
   }
@@ -108,7 +109,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           refreshToken: { accessToken, account },
         } = json.data
 
-        sendResponse({ accessToken, role: account?.role || 'FREE' })
+        sendResponse({
+          accessToken,
+          role: account?.role || 'FREE',
+          membershipType: account?.membershipType,
+        })
       })
   } else if (request.method === 'notify') {
     // Svg images not supported in notifications
