@@ -51,7 +51,7 @@ export const UserProvider = ({
 
       setUser({
         isSubscriber: isSubscriber(role),
-        isFounder: isFounder(role),
+        isFounder: isFounder(role, membershipType),
         role,
         membershipType: membershipType,
       })
@@ -66,5 +66,7 @@ export const UserProvider = ({
 export const isSubscriber = (role: User['role']) =>
   Boolean(SUBSCRIBER_ROLES.includes(role))
 
-export const isFounder = (role: User['role']) =>
-  Boolean(FOUNDER_ROLES.includes(role))
+export const isFounder = (
+  role: User['role'],
+  membershipType: User['membershipType'],
+) => FOUNDER_ROLES.includes(role) && membershipType === 'FOUNDER'
